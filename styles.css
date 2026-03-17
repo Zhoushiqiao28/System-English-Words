@@ -85,6 +85,10 @@ body {
   min-height: 100%;
 }
 
+main {
+  min-height: 0;
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -271,6 +275,7 @@ button {
 
 .view {
   display: none;
+  min-height: 0;
 }
 
 .view.is-active {
@@ -1015,6 +1020,54 @@ body[data-theme="paper"] .primary-button {
 }
 
 @media (max-width: 900px) {
+  body {
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0 auto;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  main {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .view {
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #view-study {
+    overflow: hidden;
+  }
+
+  .study-flow,
+  .study-screen.is-active,
+  .study-stage,
+  .score-stage,
+  .quiz-shell {
+    min-height: 100%;
+  }
+
+  .study-stage,
+  .score-stage,
+  .quiz-panel,
+  .quiz-status-panel {
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .hero {
     grid-template-columns: 1fr;
   }
