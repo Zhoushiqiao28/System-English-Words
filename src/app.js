@@ -4,6 +4,7 @@ const STORAGE_KEY = "sew-word-studio.store.v1";
 const HISTORY_LIMIT = 400;
 const AUTO_ADVANCE_DELAY = 720;
 const PERSISTABLE_BACKGROUND_LIMIT = 650_000;
+const CARD_SWIPE_THRESHOLD = 72;
 
 const MODE_LABELS = {
   multiple: "4-Choice",
@@ -702,7 +703,7 @@ function renderQuestion() {
   }
 
   el.questionBadge.textContent = `Q${state.session.answered + 1}`;
-  el.promptText.textContent = question.mode === "card" ? "Tap the card to flip." : question.prompt;
+  el.promptText.textContent = question.mode === "card" ? "Word Card" : question.prompt;
   el.directionChip.textContent = DIRECTION_LABELS[question.direction];
   el.modeChip.textContent = MODE_LABELS[question.mode];
   el.wordIdChip.textContent = `${question.datasetName} / No.${question.word.id}`;
@@ -847,12 +848,6 @@ function renderWordCardMode(question) {
   const block = document.createElement("div");
   block.className = "card-block";
 
-  const lead = document.createElement("p");
-  lead.textContent = question.revealed
-    ? "裏面まで確認できたら、自分の感触で自己採点できます。"
-    : "カードをタップして表裏を切り替えてください。";
-  block.append(lead);
-
   const faces = question.direction === "ja-to-en"
     ? { front: question.word.japanese, back: question.word.english }
     : { front: question.word.english, back: question.word.japanese };
@@ -861,10 +856,13 @@ function renderWordCardMode(question) {
   card.type = "button";
   card.className = `word-card${question.revealed ? " is-flipped" : ""}`;
   card.setAttribute("aria-label", "Flip word card");
+  bindWordCardGestures(card);
   card.addEventListener("click", () => {
-    question.revealed = !question.revealed;
-    renderQuestion();
-    setFeedback(question.revealed ? "カードを裏返しました。" : "カードを表に戻しました。");
+    if (card.dataset.ignoreClick === "true") {
+      card.dataset.ignoreClick = "false";
+      return;
+    }
+    toggleWordCardReveal();
   });
 
   const cardInner = document.createElement("span");
@@ -882,29 +880,76 @@ function renderWordCardMode(question) {
   card.append(cardInner);
   block.append(card);
 
-  if (question.revealed) {
-    const row = document.createElement("div");
-    row.className = "button-row";
+  const row = document.createElement("div");
+  row.className = `button-row card-actions${question.revealed ? " is-visible" : ""}`;
 
-    const known = document.createElement("button");
-    known.type = "button";
-    known.className = "primary-button";
-    known.textContent = "覚えていた";
-    known.disabled = question.answered;
-    known.addEventListener("click", () => submitFlashcardResult(true));
+  const known = document.createElement("button");
+  known.type = "button";
+  known.className = "primary-button";
+  known.textContent = "覚えていた";
+  known.disabled = question.answered;
+  known.addEventListener("click", () => submitFlashcardResult(true));
 
-    const unsure = document.createElement("button");
-    unsure.type = "button";
-    unsure.className = "secondary-button";
-    unsure.textContent = "まだあやしい";
-    unsure.disabled = question.answered;
-    unsure.addEventListener("click", () => submitFlashcardResult(false));
+  const unsure = document.createElement("button");
+  unsure.type = "button";
+  unsure.className = "secondary-button";
+  unsure.textContent = "まだあやしい";
+  unsure.disabled = question.answered;
+  unsure.addEventListener("click", () => submitFlashcardResult(false));
 
-    row.append(known, unsure);
-    block.append(row);
-  }
+  row.append(known, unsure);
+  block.append(row);
 
   el.answerArea.append(block);
+}
+
+function bindWordCardGestures(card) {
+  let startX = 0;
+  let startY = 0;
+
+  card.addEventListener("touchstart", (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    startX = touch.clientX;
+    startY = touch.clientY;
+  }, { passive: true });
+
+  card.addEventListener("touchend", (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    if (Math.abs(deltaX) >= CARD_SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+      card.dataset.ignoreClick = "true";
+      handleWordCardSwipe();
+    }
+  });
+}
+
+function toggleWordCardReveal(force) {
+  const question = state.currentQuestion;
+  if (!question || question.mode !== "card") {
+    return;
+  }
+
+  question.revealed = typeof force === "boolean" ? force : !question.revealed;
+  const card = el.answerArea.querySelector(".word-card");
+  const actions = el.answerArea.querySelector(".card-actions");
+  card?.classList.toggle("is-flipped", question.revealed);
+  actions?.classList.toggle("is-visible", question.revealed);
+  el.revealButton.textContent = question.revealed ? "Flip Back" : "Flip Card";
+}
+
+function handleWordCardSwipe() {
+  const question = state.currentQuestion;
+  if (!question || question.mode !== "card" || !question.answered) {
+    return;
+  }
+  nextQuestion();
 }
 
 function renderSession() {
@@ -1172,15 +1217,18 @@ function revealCurrentAnswer() {
     return;
   }
 
-  if (question.mode === "flashcard" || question.mode === "card") {
+  if (question.mode === "card") {
+    toggleWordCardReveal();
+    return;
+  }
+
+  if (question.mode === "flashcard") {
     question.revealed = !question.revealed;
     renderQuestion();
     if (question.revealed) {
-      setFeedback(question.mode === "card"
-        ? "カードを裏返しました。覚えていたかどうかを下のボタンで残せます。"
-        : "裏面を表示しました。覚えていたかどうかを下のボタンで残せます。");
+      setFeedback("裏面を表示しました。覚えていたかどうかを下のボタンで残せます。");
     } else {
-      setFeedback(question.mode === "card" ? "カードを表に戻しました。" : "表面に戻しました。");
+      setFeedback("表面に戻しました。");
     }
     return;
   }

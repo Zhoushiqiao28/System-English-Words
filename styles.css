@@ -717,6 +717,7 @@ body[data-theme="paper"] .primary-button {
   border: 0;
   background: transparent;
   perspective: 1200px;
+  touch-action: pan-y;
 }
 
 .word-card-inner {
@@ -725,7 +726,8 @@ body[data-theme="paper"] .primary-button {
   width: 100%;
   min-height: 260px;
   transform-style: preserve-3d;
-  transition: transform 320ms ease;
+  will-change: transform;
+  transition: transform 460ms cubic-bezier(0.22, 0.7, 0.2, 1);
 }
 
 .word-card.is-flipped .word-card-inner {
@@ -773,6 +775,25 @@ body[data-theme="paper"] .primary-button {
 
 .word-card-back::after {
   content: "Back";
+}
+
+.card-actions {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.card-actions.is-visible {
+  max-height: 160px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .feedback {
