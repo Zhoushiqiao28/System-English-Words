@@ -1087,3 +1087,222 @@ body[data-theme="paper"] .primary-button {
     min-height: 52px;
   }
 }
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 960px) {
+  .app-shell {
+    width: min(100vw - 14px, 1200px);
+    margin: 8px auto 12px;
+    gap: 10px;
+  }
+
+  .hero {
+    padding: 14px 16px;
+    gap: 6px;
+  }
+
+  .eyebrow {
+    margin-bottom: 4px;
+    font-size: 0.68rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.15rem, 3.4vw, 1.8rem);
+  }
+
+  .hero-copy,
+  .study-lead,
+  .section-header p {
+    display: none;
+  }
+
+  .tab-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .tab-button {
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .study-stage,
+  .quiz-status-panel,
+  .quiz-panel,
+  .score-stage {
+    padding: 14px 16px;
+    border-radius: 18px;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 104px);
+    overflow: auto;
+  }
+
+  .study-stage-head {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .study-stage-head h2,
+  .quiz-topline h2 {
+    font-size: clamp(1.1rem, 2.6vw, 1.7rem);
+  }
+
+  .study-stage-badges,
+  .prompt-meta {
+    gap: 6px;
+  }
+
+  .setup-grid {
+    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .setup-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .field {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .field span {
+    font-size: 0.82rem;
+  }
+
+  .field input,
+  .field select {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .toggle-stack {
+    gap: 8px;
+  }
+
+  .switch {
+    padding: 10px 12px;
+    min-height: 42px;
+  }
+
+  .compact-card,
+  .session-card {
+    margin-top: 12px;
+    padding: 14px;
+  }
+
+  .session-stats {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .study-footer-actions {
+    margin-top: 14px;
+    gap: 10px;
+  }
+
+  .study-footer-actions > * {
+    flex: 1 1 160px;
+  }
+
+  .large-button,
+  .option-button,
+  .primary-button,
+  .secondary-button {
+    min-height: 46px;
+  }
+
+  .quiz-shell {
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .quiz-status-panel {
+    position: static;
+  }
+
+  .refined-quiz-panel {
+    padding: 16px;
+  }
+
+  .quiz-panel {
+    gap: 12px;
+  }
+
+  .answer-area {
+    min-height: 0;
+    gap: 10px;
+  }
+
+  .option-grid {
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .option-button {
+    min-height: 68px;
+    padding: 10px 12px;
+  }
+
+  .feedback {
+    min-height: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .quiz-actions {
+    gap: 8px;
+  }
+
+  .quiz-actions > * {
+    flex: 1 1 120px;
+  }
+
+  .word-card,
+  .word-card-inner {
+    min-height: 170px;
+  }
+
+  .word-card-face {
+    padding: 20px;
+    border-radius: 22px;
+    font-size: clamp(1.1rem, 3vw, 1.8rem);
+  }
+
+  .word-card-front::after,
+  .word-card-back::after {
+    top: 14px;
+    left: 16px;
+    font-size: 0.72rem;
+  }
+
+  .card-actions.is-visible {
+    max-height: 120px;
+  }
+
+  .score-metrics,
+  .score-grid,
+  .settings-grid,
+  .dashboard-grid,
+  .dashboard-lower,
+  .trend-grid {
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-card,
+  .list-card,
+  .settings-card,
+  .analytics-card,
+  .history-panel {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .span-two {
+    grid-column: span 2;
+  }
+}
