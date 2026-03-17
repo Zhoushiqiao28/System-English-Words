@@ -9,6 +9,7 @@ const MODE_LABELS = {
   multiple: "4-Choice",
   input: "Input",
   flashcard: "Flashcards",
+  card: "Word Cards",
 };
 
 const DIRECTION_LABELS = {
@@ -27,7 +28,7 @@ const DEFAULT_SETTINGS = {
   rangeStart: "",
   rangeEnd: "",
   autoPronounce: false,
-  autoAdvance: true,
+  autoAdvanceMode: "correct",
   customBackground: "",
 };
 
@@ -50,7 +51,7 @@ const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
 
 const el = {
   answerArea: document.querySelector("#answerArea"),
-  autoAdvanceToggle: document.querySelector("#autoAdvanceToggle"),
+  autoAdvanceSelect: document.querySelector("#autoAdvanceSelect"),
   autoPronounceToggle: document.querySelector("#autoPronounceToggle"),
   backgroundFileInput: document.querySelector("#backgroundFileInput"),
   backgroundHint: document.querySelector("#backgroundHint"),
@@ -59,7 +60,6 @@ const el = {
   confusionList: document.querySelector("#confusionList"),
   csvFileInput: document.querySelector("#csvFileInput"),
   dashboardWeakWords: document.querySelector("#dashboardWeakWords"),
-  datasetCount: document.querySelector("#datasetCount"),
   datasetSelect: document.querySelector("#datasetSelect"),
   datasetStatusText: document.querySelector("#datasetStatusText"),
   directionBreakdown: document.querySelector("#directionBreakdown"),
@@ -79,7 +79,6 @@ const el = {
   modeChip: document.querySelector("#modeChip"),
   modeSelect: document.querySelector("#modeSelect"),
   nextQuestionButton: document.querySelector("#nextQuestionButton"),
-  overallAccuracy: document.querySelector("#overallAccuracy"),
   promptText: document.querySelector("#promptText"),
   questionBadge: document.querySelector("#questionBadge"),
   quizAccuracy: document.querySelector("#quizAccuracy"),
@@ -118,7 +117,6 @@ const el = {
   studyScreens: document.querySelectorAll(".study-screen"),
   tabButtons: document.querySelectorAll(".tab-button"),
   themeSelect: document.querySelector("#themeSelect"),
-  totalAnswered: document.querySelector("#totalAnswered"),
   wordIdChip: document.querySelector("#wordIdChip"),
   jumpToSettingsButton: document.querySelector("#jumpToSettingsButton"),
 };
@@ -248,6 +246,9 @@ function syncStore() {
     state.store.settings.activeDataset = defaultDatasetMeta.id;
   }
   state.store.settings.sessionLength = Number(state.store.settings.sessionLength || 20);
+  if (!["off", "correct", "always"].includes(state.store.settings.autoAdvanceMode)) {
+    state.store.settings.autoAdvanceMode = state.store.settings.autoAdvance ? "correct" : "off";
+  }
 }
 
 function getDatasets() {
@@ -287,7 +288,7 @@ function hydrateControls() {
   el.rangeStartInput.value = state.store.settings.rangeStart;
   el.rangeEndInput.value = state.store.settings.rangeEnd;
   el.autoPronounceToggle.checked = Boolean(state.store.settings.autoPronounce);
-  el.autoAdvanceToggle.checked = Boolean(state.store.settings.autoAdvance);
+  el.autoAdvanceSelect.value = getAutoAdvanceMode();
   el.themeSelect.value = state.store.settings.theme;
   populateDatasetSelect();
 }
@@ -318,7 +319,7 @@ function bindEvents() {
   el.rangeStartInput.addEventListener("input", () => updateRangeSetting("rangeStart", el.rangeStartInput.value));
   el.rangeEndInput.addEventListener("input", () => updateRangeSetting("rangeEnd", el.rangeEndInput.value));
   el.autoPronounceToggle.addEventListener("change", () => updateSetting("autoPronounce", el.autoPronounceToggle.checked));
-  el.autoAdvanceToggle.addEventListener("change", () => updateSetting("autoAdvance", el.autoAdvanceToggle.checked));
+  el.autoAdvanceSelect.addEventListener("change", () => updateSetting("autoAdvanceMode", el.autoAdvanceSelect.value));
   el.themeSelect.addEventListener("change", () => {
     updateSetting("theme", el.themeSelect.value);
     applyTheme();
@@ -376,6 +377,38 @@ function updateRangeSetting(key, value) {
   }
   saveStore();
   renderAll();
+}
+
+function getAutoAdvanceMode() {
+  const mode = state.store.settings.autoAdvanceMode;
+  if (mode === "off" || mode === "correct" || mode === "always") {
+    return mode;
+  }
+  return state.store.settings.autoAdvance ? "correct" : "off";
+}
+
+function shouldAutoAdvanceAfterAnswer(correct) {
+  if (state.session.completed) {
+    return false;
+  }
+  const mode = getAutoAdvanceMode();
+  return mode === "always" || (mode === "correct" && correct);
+}
+
+function focusNextQuestionButton() {
+  if (state.session.completed || state.studyScreen !== "quiz") {
+    return;
+  }
+  requestAnimationFrame(() => el.nextQuestionButton?.focus());
+}
+
+function handlePostAnswer(correct) {
+  renderAll();
+  if (shouldAutoAdvanceAfterAnswer(correct)) {
+    state.pendingAutoAdvance = window.setTimeout(() => nextQuestion(), AUTO_ADVANCE_DELAY);
+    return;
+  }
+  focusNextQuestionButton();
 }
 
 function moveToSetupScreen() {
@@ -622,7 +655,6 @@ function buildMultipleChoiceOptions(word, pool, direction) {
 }
 
 function renderAll() {
-  renderHeader();
   renderStudyFlow();
   renderQuestion();
   renderSession();
@@ -631,14 +663,6 @@ function renderAll() {
   renderDashboard();
   renderHistory();
   renderSettings();
-}
-
-function renderHeader() {
-  const dataset = getActiveDataset();
-  const analytics = computeAnalytics();
-  el.datasetCount.textContent = String(dataset.words.length);
-  el.totalAnswered.textContent = String(analytics.totalAttempts);
-  el.overallAccuracy.textContent = formatPercent(analytics.accuracy);
 }
 
 function renderStudyFlow() {
@@ -678,7 +702,7 @@ function renderQuestion() {
   }
 
   el.questionBadge.textContent = `Q${state.session.answered + 1}`;
-  el.promptText.textContent = question.prompt;
+  el.promptText.textContent = question.mode === "card" ? "Tap the card to flip." : question.prompt;
   el.directionChip.textContent = DIRECTION_LABELS[question.direction];
   el.modeChip.textContent = MODE_LABELS[question.mode];
   el.wordIdChip.textContent = `${question.datasetName} / No.${question.word.id}`;
@@ -691,11 +715,19 @@ function renderQuestion() {
     renderMultipleChoice(question);
   } else if (question.mode === "input") {
     renderInputMode(question);
+  } else if (question.mode === "card") {
+    renderWordCardMode(question);
   } else {
     renderFlashcardMode(question);
   }
 
-  el.revealButton.textContent = question.mode === "flashcard" && question.revealed ? "答えを隠す" : "答えを見る";
+  if (question.mode === "card") {
+    el.revealButton.textContent = question.revealed ? "Flip Back" : "Flip Card";
+  } else if (question.mode === "flashcard") {
+    el.revealButton.textContent = question.revealed ? "答えを隠す" : "答えを見る";
+  } else {
+    el.revealButton.textContent = "答えを見る";
+  }
   el.nextQuestionButton.textContent = state.session.completed ? "新しいセッション" : "次の問題";
 }
 
@@ -757,6 +789,7 @@ function renderInputMode(question) {
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
+      event.stopPropagation();
       submitTypedAnswer(input.value);
     }
   });
@@ -784,6 +817,70 @@ function renderFlashcardMode(question) {
   answer.className = `flash-answer${question.revealed ? " is-visible" : ""}`;
   answer.textContent = `${question.word.english}\n${question.word.japanese}`;
   block.append(answer);
+
+  if (question.revealed) {
+    const row = document.createElement("div");
+    row.className = "button-row";
+
+    const known = document.createElement("button");
+    known.type = "button";
+    known.className = "primary-button";
+    known.textContent = "覚えていた";
+    known.disabled = question.answered;
+    known.addEventListener("click", () => submitFlashcardResult(true));
+
+    const unsure = document.createElement("button");
+    unsure.type = "button";
+    unsure.className = "secondary-button";
+    unsure.textContent = "まだあやしい";
+    unsure.disabled = question.answered;
+    unsure.addEventListener("click", () => submitFlashcardResult(false));
+
+    row.append(known, unsure);
+    block.append(row);
+  }
+
+  el.answerArea.append(block);
+}
+
+function renderWordCardMode(question) {
+  const block = document.createElement("div");
+  block.className = "card-block";
+
+  const lead = document.createElement("p");
+  lead.textContent = question.revealed
+    ? "裏面まで確認できたら、自分の感触で自己採点できます。"
+    : "カードをタップして表裏を切り替えてください。";
+  block.append(lead);
+
+  const faces = question.direction === "ja-to-en"
+    ? { front: question.word.japanese, back: question.word.english }
+    : { front: question.word.english, back: question.word.japanese };
+
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = `word-card${question.revealed ? " is-flipped" : ""}`;
+  card.setAttribute("aria-label", "Flip word card");
+  card.addEventListener("click", () => {
+    question.revealed = !question.revealed;
+    renderQuestion();
+    setFeedback(question.revealed ? "カードを裏返しました。" : "カードを表に戻しました。");
+  });
+
+  const cardInner = document.createElement("span");
+  cardInner.className = "word-card-inner";
+
+  const front = document.createElement("span");
+  front.className = "word-card-face word-card-front";
+  front.textContent = faces.front;
+
+  const back = document.createElement("span");
+  back.className = "word-card-face word-card-back";
+  back.textContent = faces.back;
+
+  cardInner.append(front, back);
+  card.append(cardInner);
+  block.append(card);
 
   if (question.revealed) {
     const row = document.createElement("div");
@@ -1013,12 +1110,7 @@ function submitMultipleChoice(selectedUid, label) {
       : `不正解です。\n正解: ${question.word.english} = ${question.word.japanese}`}${getSessionCompletionSuffix()}`,
     correct ? "correct" : "wrong"
   );
-
-  renderAll();
-
-  if (correct && state.store.settings.autoAdvance && !state.session.completed) {
-    state.pendingAutoAdvance = window.setTimeout(() => nextQuestion(), AUTO_ADVANCE_DELAY);
-  }
+  handlePostAnswer(correct);
 }
 
 function submitTypedAnswer(value) {
@@ -1045,7 +1137,7 @@ function submitTypedAnswer(value) {
       : `不正解です。\n正解候補: ${result.accepted.join(" / ") || formatExpectedAnswer(question.word, question.direction)}`}${getSessionCompletionSuffix()}`,
     result.correct ? "correct" : "wrong"
   );
-  renderAll();
+  handlePostAnswer(result.correct);
 }
 
 function submitFlashcardResult(correct) {
@@ -1071,7 +1163,7 @@ function submitFlashcardResult(correct) {
       : "感触を記録しました。\nこの単語は苦手候補として重み付けされます。"}${getSessionCompletionSuffix()}`,
     correct ? "correct" : "wrong"
   );
-  renderAll();
+  handlePostAnswer(correct);
 }
 
 function revealCurrentAnswer() {
@@ -1080,13 +1172,15 @@ function revealCurrentAnswer() {
     return;
   }
 
-  if (question.mode === "flashcard") {
+  if (question.mode === "flashcard" || question.mode === "card") {
     question.revealed = !question.revealed;
     renderQuestion();
     if (question.revealed) {
-      setFeedback("裏面を表示しました。覚えていたかどうかを下のボタンで残せます。");
+      setFeedback(question.mode === "card"
+        ? "カードを裏返しました。覚えていたかどうかを下のボタンで残せます。"
+        : "裏面を表示しました。覚えていたかどうかを下のボタンで残せます。");
     } else {
-      setFeedback("表面に戻しました。");
+      setFeedback(question.mode === "card" ? "カードを表に戻しました。" : "表面に戻しました。");
     }
     return;
   }
@@ -1692,13 +1786,16 @@ function handleKeyboardShortcuts(event) {
     }
   }
 
-  if (state.currentQuestion.mode === "flashcard" && event.code === "Space") {
+  if ((state.currentQuestion.mode === "flashcard" || state.currentQuestion.mode === "card") && event.code === "Space") {
     event.preventDefault();
     revealCurrentAnswer();
     return;
   }
 
-  if (event.key === "Enter" && !typing) {
+  if (event.key === "Enter") {
+    if (!state.session.completed && !state.currentQuestion.answered) {
+      return;
+    }
     event.preventDefault();
     if (state.session.completed) {
       startSession();

@@ -32,20 +32,6 @@
           <p class="hero-copy">Offline vocabulary trainer.</p>
         </div>
 
-        <div class="hero-stats">
-          <article class="mini-stat">
-            <span class="mini-label">Words</span>
-            <strong id="datasetCount">-</strong>
-          </article>
-          <article class="mini-stat">
-            <span class="mini-label">Answers</span>
-            <strong id="totalAnswered">-</strong>
-          </article>
-          <article class="mini-stat">
-            <span class="mini-label">Accuracy</span>
-            <strong id="overallAccuracy">-</strong>
-          </article>
-        </div>
       </header>
 
       <nav class="tab-bar panel" aria-label="Main navigation">
@@ -87,6 +73,7 @@
                         <option value="multiple">4択</option>
                         <option value="input">入力</option>
                         <option value="flashcard">フラッシュ</option>
+                        <option value="card">Word Cards</option>
                       </select>
                     </label>
 
@@ -159,9 +146,13 @@
                         <input type="checkbox" id="autoPronounceToggle" />
                         <span>Read English aloud</span>
                       </label>
-                      <label class="switch">
-                        <input type="checkbox" id="autoAdvanceToggle" checked />
-                        <span>Auto-next after correct 4-choice</span>
+                      <label class="field">
+                        <span>Transition</span>
+                        <select id="autoAdvanceSelect">
+                          <option value="off">Manual</option>
+                          <option value="correct">Auto after correct</option>
+                          <option value="always">Auto after every answer</option>
+                        </select>
                       </label>
                     </div>
 
