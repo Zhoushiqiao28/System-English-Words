@@ -1142,10 +1142,34 @@ body[data-theme="paper"] .primary-button {
 }
 
 @media (orientation: landscape) and (max-height: 520px) and (max-width: 960px) {
+  body {
+    min-height: 100%;
+    height: auto;
+    overflow-y: auto;
+  }
+
   .app-shell {
+    height: auto;
+    max-height: none;
     width: min(100vw - 14px, 1200px);
     margin: 8px auto 12px;
     gap: 10px;
+  }
+
+  main,
+  .view,
+  #view-study,
+  .study-flow,
+  .study-screen.is-active,
+  .quiz-shell,
+  .study-stage,
+  .score-stage,
+  .quiz-panel,
+  .quiz-status-panel {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    max-height: none;
   }
 
   .hero {
@@ -1187,8 +1211,6 @@ body[data-theme="paper"] .primary-button {
   .score-stage {
     padding: 14px 16px;
     border-radius: 18px;
-    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 104px);
-    overflow: auto;
   }
 
   .study-stage-head {
