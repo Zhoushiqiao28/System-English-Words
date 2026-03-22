@@ -1141,6 +1141,145 @@ body[data-theme="paper"] .primary-button {
   }
 }
 
+@media (orientation: portrait) and (max-width: 430px) and (min-height: 780px) {
+  .app-shell {
+    width: min(100vw - 12px, 430px);
+    gap: 10px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hero {
+    padding: 16px;
+    gap: 8px;
+  }
+
+  .eyebrow {
+    margin-bottom: 6px;
+    font-size: 0.74rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.55rem, 8vw, 2.2rem);
+  }
+
+  .hero-copy {
+    margin-top: 10px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .tab-bar {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .tab-button {
+    padding: 10px 6px;
+    border-radius: 14px;
+    font-size: 0.82rem;
+  }
+
+  .hero,
+  .study-stage,
+  .quiz-status-panel,
+  .quiz-panel,
+  .score-stage,
+  .analytics-card,
+  .metric-card,
+  .history-panel,
+  .settings-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .study-stage-head {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .study-stage-head h2,
+  .quiz-topline h2 {
+    font-size: clamp(1.3rem, 6vw, 1.8rem);
+  }
+
+  .study-stage-badges,
+  .prompt-meta {
+    gap: 8px;
+  }
+
+  .setup-card {
+    padding: 16px;
+  }
+
+  .field {
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .field input,
+  .field select {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .switch {
+    padding: 11px 12px;
+    border-radius: 14px;
+  }
+
+  .compact-card,
+  .session-card {
+    margin-top: 14px;
+    padding: 14px;
+  }
+
+  .session-stats {
+    margin-top: 14px;
+    gap: 10px;
+  }
+
+  .answer-area {
+    min-height: 240px;
+    gap: 12px;
+  }
+
+  .option-button {
+    min-height: 74px;
+  }
+
+  .quiz-actions {
+    gap: 10px;
+  }
+
+  .quiz-actions > * {
+    flex: 1 1 100%;
+  }
+
+  .word-card,
+  .word-card-inner {
+    min-height: 250px;
+  }
+
+  .word-card-face {
+    padding: 24px;
+    font-size: clamp(1.25rem, 7vw, 2rem);
+  }
+
+  .score-metrics,
+  .score-grid,
+  .settings-grid,
+  .dashboard-grid,
+  .dashboard-lower,
+  .trend-grid {
+    gap: 12px;
+  }
+
+  .metric-card strong {
+    font-size: clamp(1.15rem, 6vw, 1.6rem);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 520px) and (max-width: 960px) {
   body {
     min-height: 100%;
