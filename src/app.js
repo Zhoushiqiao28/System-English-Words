@@ -5,6 +5,7 @@ const HISTORY_LIMIT = 400;
 const AUTO_ADVANCE_DELAY = 720;
 const PERSISTABLE_BACKGROUND_LIMIT = 650_000;
 const CARD_SWIPE_THRESHOLD = 72;
+const ADVANCE_SWIPE_THRESHOLD = 68;
 
 const MODE_LABELS = {
   multiple: "4-Choice",
@@ -355,6 +356,11 @@ function bindEvents() {
     }
   });
   el.favoriteButton.addEventListener("click", toggleFavoriteForCurrentWord);
+  el.feedbackBox.addEventListener("click", () => {
+    advanceQuestionFromGesture();
+  });
+  bindAdvanceSwipeSurface(el.answerArea);
+  bindAdvanceSwipeSurface(el.feedbackBox);
 
   el.historyFilterSelect.addEventListener("change", renderHistory);
   el.exportHistoryButton.addEventListener("click", exportStudyData);
@@ -401,6 +407,49 @@ function focusNextQuestionButton() {
     return;
   }
   requestAnimationFrame(() => el.nextQuestionButton?.focus());
+}
+
+function canAdvanceFromGesture() {
+  return (
+    state.currentView === "study" &&
+    state.studyScreen === "quiz" &&
+    Boolean(state.currentQuestion?.answered) &&
+    !state.session.completed
+  );
+}
+
+function advanceQuestionFromGesture() {
+  if (!canAdvanceFromGesture()) {
+    return false;
+  }
+  nextQuestion();
+  return true;
+}
+
+function bindAdvanceSwipeSurface(element) {
+  let startX = 0;
+  let startY = 0;
+
+  element.addEventListener("touchstart", (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    startX = touch.clientX;
+    startY = touch.clientY;
+  }, { passive: true });
+
+  element.addEventListener("touchend", (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    if (Math.abs(deltaX) >= ADVANCE_SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+      advanceQuestionFromGesture();
+    }
+  });
 }
 
 function handlePostAnswer(correct) {
@@ -694,6 +743,7 @@ function renderQuestion() {
     el.wordIdChip.textContent = dataset.meta.name;
     el.favoriteButton.textContent = "☆";
     el.answerArea.replaceChildren(makeEmptyState("左の設定を選んでから、セッション開始を押してください。"));
+    el.feedbackBox.classList.remove("is-next-ready");
     el.revealButton.disabled = true;
     el.speakButton.disabled = true;
     if (state.studyScreen === "setup") {
@@ -708,6 +758,7 @@ function renderQuestion() {
   el.modeChip.textContent = MODE_LABELS[question.mode];
   el.wordIdChip.textContent = `${question.datasetName} / No.${question.word.id}`;
   el.favoriteButton.textContent = state.store.progress.favorites[question.word.uid] ? "★" : "☆";
+  el.feedbackBox.classList.toggle("is-next-ready", question.answered && !state.session.completed);
   el.revealButton.disabled = false;
   el.speakButton.disabled = false;
   el.answerArea.replaceChildren();
@@ -741,9 +792,9 @@ function renderMultipleChoice(question) {
     button.type = "button";
     button.className = "option-button";
     button.textContent = `${option.index}. ${option.label}`;
-    button.disabled = question.answered;
 
     if (question.answered) {
+      button.classList.add("is-next-ready");
       if (option.isCorrect) {
         button.classList.add("is-correct");
       }
@@ -752,7 +803,13 @@ function renderMultipleChoice(question) {
       }
     }
 
-    button.addEventListener("click", () => submitMultipleChoice(option.uid, option.label));
+    button.addEventListener("click", () => {
+      if (question.answered) {
+        advanceQuestionFromGesture();
+        return;
+      }
+      submitMultipleChoice(option.uid, option.label);
+    });
     grid.append(button);
   });
 
@@ -862,6 +919,10 @@ function renderWordCardMode(question) {
       card.dataset.ignoreClick = "false";
       return;
     }
+    if (question.answered) {
+      advanceQuestionFromGesture();
+      return;
+    }
     toggleWordCardReveal();
   });
 
@@ -949,7 +1010,7 @@ function handleWordCardSwipe() {
   if (!question || question.mode !== "card" || !question.answered) {
     return;
   }
-  nextQuestion();
+  advanceQuestionFromGesture();
 }
 
 function renderSession() {

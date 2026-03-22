@@ -676,6 +676,10 @@ body[data-theme="paper"] .primary-button {
   border-color: rgba(255, 127, 150, 0.45);
 }
 
+.option-button.is-next-ready {
+  cursor: pointer;
+}
+
 .input-block,
 .flash-block,
 .card-block {
@@ -809,6 +813,12 @@ body[data-theme="paper"] .primary-button {
   background: rgba(255, 255, 255, 0.03);
   line-height: 1.75;
   white-space: pre-line;
+}
+
+.feedback.is-next-ready {
+  cursor: pointer;
+  border-color: rgba(124, 225, 255, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(124, 225, 255, 0.12);
 }
 
 .feedback.is-correct {
