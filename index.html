@@ -25,419 +25,112 @@
     </div>
 
     <div class="app-shell">
-      <header class="hero panel">
-        <div>
+      <header class="topbar panel">
+        <div class="brand-block">
           <p class="eyebrow">System English Words</p>
           <h1>System English Words</h1>
-          <p class="hero-copy">Offline vocabulary trainer.</p>
         </div>
 
+        <div class="topbar-meta">
+          <span class="status-pill" id="headerDatasetName">Default Set</span>
+          <span class="status-pill" id="headerWordCount">0 words</span>
+        </div>
       </header>
 
       <nav class="tab-bar panel" aria-label="Main navigation">
-        <button class="tab-button is-active" data-view-target="study">Study</button>
+        <button class="tab-button is-active" data-view-target="system">Step 1</button>
+        <button class="tab-button" data-view-target="details">Step 2</button>
+        <button class="tab-button" data-view-target="study">Step 3</button>
+        <button class="tab-button" data-view-target="results">Step 4</button>
         <button class="tab-button" data-view-target="dashboard">Dashboard</button>
-        <button class="tab-button" data-view-target="history">History</button>
-        <button class="tab-button" data-view-target="settings">Settings</button>
       </nav>
 
       <main>
-        <section class="view is-active" id="view-study">
-          <div class="study-flow">
-            <section class="study-screen is-active" id="study-screen-setup">
-              <div class="panel study-stage">
-                <div class="study-stage-head">
-                  <div>
-                    <p class="eyebrow">Study Setup</p>
-                    <h2>Study Setup</h2>
-                    <p class="study-lead" id="setupSummaryText">
-                      Choose mode, range, and session length before you start.
-                    </p>
-                  </div>
-                  <div class="study-stage-badges">
-                    <span class="chip" id="setupDatasetChip">-</span>
-                    <span class="chip" id="setupRangeChip">-</span>
-                  </div>
-                </div>
-
-                <div class="setup-grid">
-                  <article class="setup-card">
-                    <div class="section-header">
-                      <h3>Style</h3>
-                      <p>Choose how you want to study.</p>
-                    </div>
-
-                    <label class="field">
-                        <span>Mode</span>
-                      <select id="modeSelect">
-                        <option value="multiple">4択</option>
-                        <option value="input">入力</option>
-                        <option value="flashcard">フラッシュ</option>
-                        <option value="card">Word Cards</option>
-                      </select>
-                    </label>
-
-                    <label class="field">
-                        <span>Direction</span>
-                      <select id="directionSelect">
-                          <option value="en-to-ja">English → Japanese</option>
-                          <option value="ja-to-en">Japanese → English</option>
-                          <option value="mixed">Mixed</option>
-                      </select>
-                    </label>
-
-                    <label class="field">
-                        <span>Focus</span>
-                      <select id="focusSelect">
-                          <option value="all">All</option>
-                          <option value="weak">Weak words</option>
-                          <option value="favorites">Favorites</option>
-                          <option value="recent-mistakes">Recent mistakes</option>
-                      </select>
-                    </label>
-                  </article>
-
-                  <article class="setup-card">
-                    <div class="section-header">
-                      <h3>Range</h3>
-                      <p>Filter study sections by number.</p>
-                    </div>
-
-                    <label class="field">
-                        <span>Dataset</span>
-                      <select id="datasetSelect"></select>
-                    </label>
-
-                    <label class="field">
-                        <span>Session</span>
-                      <select id="sessionLengthSelect">
-                          <option value="10">10 questions</option>
-                          <option value="20" selected>20 questions</option>
-                          <option value="50">50 questions</option>
-                          <option value="0">Unlimited</option>
-                      </select>
-                    </label>
-
-                    <div class="range-row">
-                      <label class="field">
-                        <span>Start</span>
-                        <input id="rangeStartInput" inputmode="numeric" placeholder="例: 100" />
-                      </label>
-
-                      <label class="field">
-                        <span>End</span>
-                        <input id="rangeEndInput" inputmode="numeric" placeholder="例: 250" />
-                      </label>
-                    </div>
-
-                    <p class="hint range-hint" id="rangeHint">
-                      Leave blank to use the full range.
-                    </p>
-                  </article>
-
-                  <article class="setup-card">
-                    <div class="section-header">
-                      <h3>Options</h3>
-                      <p>Tune pace and audio.</p>
-                    </div>
-
-                    <div class="toggle-stack">
-                      <label class="switch">
-                        <input type="checkbox" id="autoPronounceToggle" />
-                        <span>Read English aloud</span>
-                      </label>
-                      <label class="field">
-                        <span>Transition</span>
-                        <select id="autoAdvanceSelect">
-                          <option value="off">Manual</option>
-                          <option value="correct">Auto after correct</option>
-                          <option value="always">Auto after every answer</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    <article class="session-card compact-card">
-                      <div class="session-card-header">
-                        <h3>Preview</h3>
-                        <span class="badge" id="sessionModeBadge">Idle</span>
-                      </div>
-                      <dl class="session-stats">
-                        <div>
-                          <dt>Progress</dt>
-                          <dd id="sessionProgress">0 / 0</dd>
-                        </div>
-                        <div>
-                          <dt>Accuracy</dt>
-                          <dd id="sessionAccuracy">-</dd>
-                        </div>
-                        <div>
-                          <dt>Streak</dt>
-                          <dd id="sessionStreak">0</dd>
-                        </div>
-                      </dl>
-                    </article>
-                  </article>
-                </div>
-
-                <div class="study-footer-actions">
-                  <button class="primary-button large-button" id="startSessionButton">Start Session</button>
-                  <button class="secondary-button" id="jumpToSettingsButton">Open Settings</button>
-                </div>
-              </div>
-            </section>
-
-            <section class="study-screen" id="study-screen-quiz">
-              <div class="quiz-shell">
-                <aside class="panel quiz-status-panel">
-                  <div class="section-header">
-                    <h2>Session</h2>
-                    <p>Focus only on the current run.</p>
-                  </div>
-
-                  <article class="session-card">
-                    <div class="session-card-header">
-                      <h3>Status</h3>
-                      <span class="badge" id="quizStatusBadge">In progress</span>
-                    </div>
-                    <dl class="session-stats">
-                      <div>
-                        <dt>Progress</dt>
-                        <dd id="quizProgress">0 / 0</dd>
-                      </div>
-                      <div>
-                        <dt>Accuracy</dt>
-                        <dd id="quizAccuracy">-</dd>
-                      </div>
-                      <div>
-                        <dt>Streak</dt>
-                        <dd id="quizStreak">0</dd>
-                      </div>
-                    </dl>
-                  </article>
-
-                  <div class="list-card compact-card">
-                    <div class="list-card-header">
-                      <h3>Current Setup</h3>
-                    </div>
-                    <ul class="data-list compact-list" id="quizMetaList"></ul>
-                  </div>
-
-                  <div class="study-footer-actions stacked-mobile">
-                    <button class="secondary-button" id="backToSetupButton">Back to Setup</button>
-                  </div>
-                </aside>
-
-                <section class="panel quiz-panel refined-quiz-panel">
-                  <div class="quiz-topline">
-                    <div>
-                    <p class="eyebrow" id="questionBadge">Ready</p>
-                    <h2 id="promptText">Questions appear here after the session starts.</h2>
-                    </div>
-                    <button class="icon-button" id="favoriteButton" title="お気に入りに追加・解除" aria-label="お気に入りに追加・解除">
-                      ☆
-                    </button>
-                  </div>
-
-                  <div class="prompt-meta">
-                    <span class="chip" id="directionChip">-</span>
-                    <span class="chip" id="modeChip">-</span>
-                    <span class="chip" id="wordIdChip">-</span>
-                  </div>
-
-                  <div id="answerArea" class="answer-area"></div>
-
-                  <div class="feedback" id="feedbackBox" aria-live="polite"></div>
-
-                  <div class="quiz-actions">
-                    <button class="secondary-button" id="revealButton">Reveal</button>
-                    <button class="secondary-button" id="speakButton">Speak</button>
-                    <button class="primary-button" id="nextQuestionButton">Next</button>
-                  </div>
-                </section>
-              </div>
-            </section>
-
-            <section class="study-screen" id="study-screen-score">
-              <div class="panel score-stage">
-                <div class="study-stage-head">
-                  <div>
-                    <p class="eyebrow">Session Score</p>
-                    <h2>Session Score</h2>
-                    <p class="study-lead" id="scoreSummaryText">
-                      Review the session and get ready for the next round.
-                    </p>
-                  </div>
-                  <div class="study-stage-badges">
-                    <span class="chip" id="scoreDatasetChip">-</span>
-                    <span class="chip" id="scoreRangeChip">-</span>
-                  </div>
-                </div>
-
-                <div class="score-metrics">
-                  <article class="metric-card">
-                    <span class="metric-label">Correct</span>
-                    <strong id="scoreCorrectCount">0</strong>
-                    <p id="scoreAnsweredCount">0 / 0</p>
-                  </article>
-                  <article class="metric-card">
-                    <span class="metric-label">Accuracy</span>
-                    <strong id="scoreAccuracyValue">0%</strong>
-                    <p>This score is for the current session only.</p>
-                  </article>
-                  <article class="metric-card">
-                    <span class="metric-label">Best Streak</span>
-                    <strong id="scoreBestStreak">0</strong>
-                    <p>Recorded inside this session.</p>
-                  </article>
-                </div>
-
-                <div class="score-grid">
-                  <article class="list-card">
-                    <div class="list-card-header">
-                      <h3>Missed Words</h3>
-                      <span class="badge" id="scoreMistakeBadge">0 items</span>
-                    </div>
-                    <ul id="scoreMistakeList" class="data-list"></ul>
-                  </article>
-
-                  <article class="list-card">
-                    <div class="list-card-header">
-                      <h3>Notes</h3>
-                    </div>
-                    <ul id="scoreNoteList" class="data-list"></ul>
-                  </article>
-                </div>
-
-                <div class="study-footer-actions">
-                  <button class="primary-button large-button" id="restartSessionButton">Restart</button>
-                  <button class="secondary-button" id="returnToSetupButton">Back to Setup</button>
-                </div>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <section class="view" id="view-dashboard">
-          <div class="dashboard-grid">
-            <article class="panel metric-card">
-              <span class="metric-label">累計回答数</span>
-              <strong id="metricAttempts">0</strong>
-              <p>これまでに解いた問題の総数です。</p>
-            </article>
-            <article class="panel metric-card">
-              <span class="metric-label">累計正答率</span>
-              <strong id="metricAccuracy">0%</strong>
-              <p>すべてのモード・方向を合算した結果です。</p>
-            </article>
-            <article class="panel metric-card">
-              <span class="metric-label">最長連続正解</span>
-              <strong id="metricBestStreak">0</strong>
-              <p>自己ベストの連続正解数です。</p>
-            </article>
-            <article class="panel metric-card">
-              <span class="metric-label">苦手候補</span>
-              <strong id="metricWeakCount">0</strong>
-              <p>ミスが複数回ある単語を自動で集計しています。</p>
-            </article>
-          </div>
-
-          <div class="dashboard-lower">
-            <article class="panel analytics-card">
-              <div class="section-header">
-                <h2>モード別の成績</h2>
-                <p>どの出題形式で伸びているかを確認できます。</p>
-              </div>
-              <div id="modeBreakdown" class="breakdown-list"></div>
-            </article>
-
-            <article class="panel analytics-card">
-              <div class="section-header">
-                <h2>方向別の成績</h2>
-                <p>英→日と日→英の差を見て、練習方針を決められます。</p>
-              </div>
-              <div id="directionBreakdown" class="breakdown-list"></div>
-            </article>
-
-            <article class="panel analytics-card span-two">
-              <div class="section-header">
-                <h2>誤答傾向</h2>
-                <p>ミスしやすい単語や、4択で迷いやすい組み合わせを表示します。</p>
-              </div>
-              <div class="trend-grid">
+        <section class="view is-active" id="view-system">
+          <div class="workspace system-workspace">
+            <article class="panel workspace-card">
+              <div class="card-head">
                 <div>
-                  <h3>苦手単語</h3>
-                  <ul id="dashboardWeakWords" class="data-list"></ul>
+                  <p class="eyebrow">Step 1</p>
+                  <h2>System</h2>
                 </div>
-                <div>
-                  <h3>混同しやすい選択肢</h3>
-                  <ul id="confusionList" class="data-list"></ul>
+                <span class="status-pill" id="systemWordCount">0 words</span>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>Mode</span>
+                  <select id="modeSelect">
+                    <option value="multiple">4-Choice</option>
+                    <option value="input">Input</option>
+                    <option value="flashcard">Flashcards</option>
+                    <option value="card">Word Cards</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Dataset</span>
+                  <select id="datasetSelect"></select>
+                </label>
+              </div>
+
+              <div class="mini-grid">
+                <div class="mini-tile">
+                  <span class="mini-label">Active Set</span>
+                  <strong id="systemDatasetName">Default Set</strong>
                 </div>
+                <div class="mini-tile">
+                  <span class="mini-label">Range</span>
+                  <strong id="systemRangePreview">1 - 2027</strong>
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button class="secondary-button" id="openWordBankButton">Word List</button>
+                <button class="primary-button" id="goToDetailsButton">Next</button>
               </div>
             </article>
-          </div>
-        </section>
 
-        <section class="view" id="view-history">
-          <div class="panel history-panel">
-            <div class="section-header">
-              <h2>回答履歴</h2>
-              <p>新しいものから順に表示します。学習ログはこの端末だけに保存されます。</p>
-            </div>
-
-            <div class="history-toolbar">
-              <label class="field inline-field">
-                <span>表示</span>
-                <select id="historyFilterSelect">
-                  <option value="all">すべて</option>
-                  <option value="correct">正解のみ</option>
-                  <option value="incorrect">不正解のみ</option>
-                </select>
-              </label>
-
-              <button class="secondary-button" id="exportHistoryButton">学習データを書き出す</button>
-            </div>
-
-            <ul id="historyList" class="history-list"></ul>
-          </div>
-        </section>
-
-        <section class="view" id="view-settings">
-          <div class="settings-grid">
-            <article class="panel settings-card">
-              <div class="section-header">
-                <h2>Theme</h2>
-                <p>Switch the look and update the background image.</p>
+            <article class="panel workspace-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Theme</p>
+                  <h2>Look</h2>
+                </div>
               </div>
 
-              <label class="field">
-                <span>Theme</span>
-                <select id="themeSelect">
-                  <option value="aurora">Aurora</option>
-                  <option value="ember">Ember</option>
-                  <option value="forest">Forest</option>
-                  <option value="midnight">Midnight</option>
-                  <option value="paper">Paper</option>
-                </select>
-              </label>
+              <div class="field-grid">
+                <label class="field">
+                  <span>Theme</span>
+                  <select id="themeSelect">
+                    <option value="aurora">Aurora</option>
+                    <option value="ember">Ember</option>
+                    <option value="forest">Forest</option>
+                    <option value="midnight">Midnight</option>
+                    <option value="paper">Paper</option>
+                  </select>
+                </label>
 
-              <label class="field">
-                <span>Background Image</span>
-                <input type="file" id="backgroundFileInput" accept="image/*" />
-              </label>
+                <label class="field">
+                  <span>Background</span>
+                  <input type="file" id="backgroundFileInput" accept="image/*" />
+                </label>
+              </div>
+
+              <p class="compact-note" id="backgroundHint">Theme only</p>
 
               <div class="button-row">
                 <button class="secondary-button" id="clearBackgroundButton">Clear Background</button>
+                <button class="secondary-button" id="clearCacheButton">Clear Cache</button>
               </div>
-
-              <p class="hint" id="backgroundHint">
-                Use a theme only, or combine it with a background image.
-              </p>
             </article>
 
-            <article class="panel settings-card">
-              <div class="section-header">
-                <h2>Dataset</h2>
-                <p>Load a CSV file and replace the active word list.</p>
+            <article class="panel workspace-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Data</p>
+                  <h2>Manage</h2>
+                </div>
               </div>
 
               <label class="field">
@@ -445,41 +138,323 @@
                 <input type="file" id="csvFileInput" accept=".csv,.tsv,.txt" />
               </label>
 
-              <p class="hint" id="datasetStatusText">The default dataset comes from system.xlsx.</p>
-            </article>
-
-            <article class="panel settings-card">
-              <div class="section-header">
-                <h2>Install on iPhone</h2>
-                <p>Add this app to the iPhone home screen as a PWA.</p>
-              </div>
-
-              <ol class="install-steps">
-                <li>Open the app in Safari over HTTPS.</li>
-                <li>Tap Share.</li>
-                <li>Choose Add to Home Screen.</li>
-                <li>Launch it from the home screen like an app.</li>
-              </ol>
-
-              <p class="hint install-note">
-                iPhone PWA install works best in Safari and usually requires HTTPS.
-              </p>
-            </article>
-
-            <article class="panel settings-card">
-              <div class="section-header">
-                <h2>Reset</h2>
-                <p>Clear saved progress, settings, and imported data on this device.</p>
-              </div>
+              <p class="compact-note" id="datasetStatusText">Built-in data: system.xlsx</p>
 
               <div class="button-row stacked">
                 <button class="secondary-button danger-button" id="resetProgressButton">Clear Progress</button>
                 <button class="secondary-button danger-button" id="resetAllButton">Clear All Local Data</button>
               </div>
+            </article>
+          </div>
+        </section>
 
-              <p class="hint">
-                This removes local data only. The built-in system.xlsx dataset stays available.
-              </p>
+        <section class="view" id="view-details">
+          <div class="workspace details-workspace">
+            <article class="panel workspace-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Step 2</p>
+                  <h2>Details</h2>
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>Direction</span>
+                  <select id="directionSelect">
+                    <option value="en-to-ja">English to Japanese</option>
+                    <option value="ja-to-en">Japanese to English</option>
+                    <option value="mixed">Mixed</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Focus</span>
+                  <select id="focusSelect">
+                    <option value="all">All</option>
+                    <option value="weak">Weak</option>
+                    <option value="favorites">Favorites</option>
+                    <option value="recent-mistakes">Recent Mistakes</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Transition</span>
+                  <select id="autoAdvanceSelect">
+                    <option value="off">Manual</option>
+                    <option value="correct">After Correct</option>
+                    <option value="always">After Every Answer</option>
+                  </select>
+                </label>
+
+                <div class="field toggle-field">
+                  <span>Pronunciation</span>
+                  <label class="switch">
+                    <input type="checkbox" id="autoPronounceToggle" />
+                    <span>Read English Aloud</span>
+                  </label>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel workspace-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Range</p>
+                  <h2>Session</h2>
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>Length</span>
+                  <select id="sessionLengthSelect">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="0">Unlimited</option>
+                  </select>
+                </label>
+
+                <div class="range-fields">
+                  <label class="field">
+                    <span>Start</span>
+                    <input id="rangeStartInput" inputmode="numeric" placeholder="100" />
+                  </label>
+
+                  <label class="field">
+                    <span>End</span>
+                    <input id="rangeEndInput" inputmode="numeric" placeholder="250" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="mini-grid detail-mini-grid">
+                <div class="mini-tile">
+                  <span class="mini-label">Selected</span>
+                  <strong id="detailsSelectionCount">0</strong>
+                </div>
+                <div class="mini-tile">
+                  <span class="mini-label">Range</span>
+                  <strong id="detailsRangeHint">1 - 2027</strong>
+                </div>
+              </div>
+            </article>
+
+            <aside class="panel workspace-card launch-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Preview</p>
+                  <h2>Ready</h2>
+                </div>
+              </div>
+
+              <dl class="preview-list">
+                <div>
+                  <dt>Mode</dt>
+                  <dd id="detailsModeText">4-Choice</dd>
+                </div>
+                <div>
+                  <dt>Direction</dt>
+                  <dd id="detailsDirectionText">English to Japanese</dd>
+                </div>
+                <div>
+                  <dt>Focus</dt>
+                  <dd id="detailsFocusText">All</dd>
+                </div>
+                <div>
+                  <dt>Transition</dt>
+                  <dd id="detailsTransitionText">Manual</dd>
+                </div>
+              </dl>
+
+              <div class="button-row stacked">
+                <button class="secondary-button" id="backToSystemButton">Back</button>
+                <button class="primary-button large-button" id="startSessionButton">Start</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-study">
+          <div class="workspace study-workspace">
+            <section class="panel study-panel">
+              <div class="study-stage">
+                <div class="study-main">
+                  <div class="study-head">
+                    <div>
+                      <p class="eyebrow" id="questionBadge">Ready</p>
+                      <h2 id="promptText">Set your session and press Start.</h2>
+                    </div>
+
+                    <button class="icon-button" id="favoriteButton" type="button" aria-label="Favorite">
+                      ☆
+                    </button>
+                  </div>
+
+                  <div id="answerArea" class="answer-area"></div>
+                  <div class="feedback" id="feedbackBox" aria-live="polite"></div>
+                </div>
+
+                <aside class="study-corner">
+                  <div class="corner-stack">
+                    <div class="corner-card">
+                      <span class="corner-label">Current</span>
+                      <div class="corner-meta-list" id="studyStatusCorner"></div>
+                    </div>
+
+                    <div class="corner-card compact-corner">
+                      <span class="corner-label">Session</span>
+                      <div class="corner-inline">
+                        <strong id="studyProgressText">0 / 0</strong>
+                        <span id="studyAccuracyText">-</span>
+                      </div>
+                      <div class="corner-inline muted">
+                        <span>Streak</span>
+                        <strong id="studyStreakText">0</strong>
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+
+              <div class="quiz-actions">
+                <button class="secondary-button" id="revealButton">Reveal</button>
+                <button class="secondary-button" id="speakButton">Speak</button>
+                <button class="secondary-button" id="exitSessionButton">Back</button>
+                <button class="primary-button" id="nextQuestionButton">Next</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-results">
+          <div class="workspace results-workspace">
+            <article class="panel workspace-card score-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Step 4</p>
+                  <h2>Results</h2>
+                </div>
+                <div class="chip-group">
+                  <span class="status-pill" id="resultDatasetChip">Default Set</span>
+                  <span class="status-pill" id="resultRangeChip">1 - 2027</span>
+                </div>
+              </div>
+
+              <p class="compact-note result-note" id="resultSummaryText">Finish a session to see the score.</p>
+
+              <div class="score-grid">
+                <article class="metric-card">
+                  <span class="mini-label">Correct</span>
+                  <strong id="resultCorrectCount">0</strong>
+                  <p id="resultAnsweredCount">0 answered</p>
+                </article>
+                <article class="metric-card">
+                  <span class="mini-label">Accuracy</span>
+                  <strong id="resultAccuracyValue">0%</strong>
+                  <p id="resultDuration">0m</p>
+                </article>
+                <article class="metric-card">
+                  <span class="mini-label">Best Streak</span>
+                  <strong id="resultBestStreak">0</strong>
+                  <p>Session</p>
+                </article>
+              </div>
+
+              <div class="button-row">
+                <button class="primary-button" id="repeatSessionButton">Repeat This Session</button>
+                <button class="secondary-button" id="backToDetailsButton">Back to Details</button>
+              </div>
+            </article>
+
+            <article class="panel workspace-card history-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">History</p>
+                  <h2>Review</h2>
+                </div>
+                <span class="status-pill" id="resultHistoryCount">0</span>
+              </div>
+
+              <ul id="resultHistoryList" class="result-history-list"></ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-dashboard">
+          <div class="workspace dashboard-workspace">
+            <article class="panel workspace-card calendar-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Dashboard</p>
+                  <h2>Calendar</h2>
+                </div>
+                <span class="status-pill">Last 35 Days</span>
+              </div>
+
+              <div id="dashboardCalendar" class="calendar-grid" aria-label="Study calendar"></div>
+            </article>
+
+            <article class="panel workspace-card metric-stack-card">
+              <div class="metric-stack">
+                <div class="metric-panel">
+                  <span class="mini-label">Study Time</span>
+                  <strong id="metricStudyTime">0m</strong>
+                </div>
+                <div class="metric-panel">
+                  <span class="mini-label">Total Answers</span>
+                  <strong id="metricAttempts">0</strong>
+                </div>
+                <div class="metric-panel">
+                  <span class="mini-label">Best Streak</span>
+                  <strong id="metricBestStreak">0</strong>
+                </div>
+              </div>
+            </article>
+
+            <button class="panel weak-summary-card" id="openWeakWordsButton" type="button">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Weak Candidates</p>
+                  <h2>Weak Words</h2>
+                </div>
+                <span class="status-pill" id="weakCandidateCount">0</span>
+              </div>
+
+              <ul id="weakCandidatePreview" class="preview-chip-list"></ul>
+            </button>
+          </div>
+        </section>
+
+        <section class="view view-scroll" id="view-weak-words">
+          <div class="workspace aux-workspace">
+            <article class="panel scroll-card">
+              <div class="card-head sticky-head">
+                <div>
+                  <p class="eyebrow">Weak Words</p>
+                  <h2>Detail</h2>
+                </div>
+                <button class="secondary-button" id="closeWeakWordsButton">Back</button>
+              </div>
+
+              <ul id="weakWordsDetailList" class="data-list tall-list"></ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="view view-scroll" id="view-word-bank">
+          <div class="workspace aux-workspace">
+            <article class="panel scroll-card">
+              <div class="card-head sticky-head">
+                <div>
+                  <p class="eyebrow">Word Bank</p>
+                  <h2>List</h2>
+                </div>
+                <button class="secondary-button" id="closeWordBankButton">Back</button>
+              </div>
+
+              <ul id="wordBankList" class="word-bank-list"></ul>
             </article>
           </div>
         </section>

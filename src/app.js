@@ -1,11 +1,14 @@
-import { defaultWords, defaultDatasetMeta } from "./data/defaultWords.js";
+﻿import { defaultWords, defaultDatasetMeta } from "./data/defaultWords.js";
 
-const STORAGE_KEY = "sew-word-studio.store.v1";
-const HISTORY_LIMIT = 400;
+const STORAGE_KEY = "sew-word-studio.store.v2";
+const HISTORY_LIMIT = 600;
+const SESSION_LOG_LIMIT = 180;
 const AUTO_ADVANCE_DELAY = 720;
 const PERSISTABLE_BACKGROUND_LIMIT = 650_000;
 const CARD_SWIPE_THRESHOLD = 72;
 const ADVANCE_SWIPE_THRESHOLD = 68;
+const CALENDAR_DAY_COUNT = 35;
+const PRIMARY_VIEWS = new Set(["system", "details", "study", "results", "dashboard"]);
 
 const MODE_LABELS = {
   multiple: "4-Choice",
@@ -15,9 +18,22 @@ const MODE_LABELS = {
 };
 
 const DIRECTION_LABELS = {
-  "en-to-ja": "English → Japanese",
-  "ja-to-en": "Japanese → English",
+  "en-to-ja": "English to Japanese",
+  "ja-to-en": "Japanese to English",
   mixed: "Mixed",
+};
+
+const FOCUS_LABELS = {
+  all: "All",
+  weak: "Weak",
+  favorites: "Favorites",
+  "recent-mistakes": "Recent Mistakes",
+};
+
+const TRANSITION_LABELS = {
+  off: "Manual",
+  correct: "After Correct",
+  always: "After Every Answer",
 };
 
 const DEFAULT_SETTINGS = {
@@ -36,9 +52,11 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_PROGRESS = {
   attempts: [],
+  sessions: [],
   wordStats: {},
   favorites: {},
   bestStreak: 0,
+  studyTimeMs: 0,
 };
 
 const DEFAULT_DATASET = {
@@ -47,91 +65,97 @@ const DEFAULT_DATASET = {
 };
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
-  dateStyle: "short",
-  timeStyle: "short",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
 });
 
 const el = {
   answerArea: document.querySelector("#answerArea"),
   autoAdvanceSelect: document.querySelector("#autoAdvanceSelect"),
   autoPronounceToggle: document.querySelector("#autoPronounceToggle"),
+  backToDetailsButton: document.querySelector("#backToDetailsButton"),
+  backToSystemButton: document.querySelector("#backToSystemButton"),
   backgroundFileInput: document.querySelector("#backgroundFileInput"),
   backgroundHint: document.querySelector("#backgroundHint"),
-  backToSetupButton: document.querySelector("#backToSetupButton"),
   clearBackgroundButton: document.querySelector("#clearBackgroundButton"),
-  confusionList: document.querySelector("#confusionList"),
+  clearCacheButton: document.querySelector("#clearCacheButton"),
+  closeWeakWordsButton: document.querySelector("#closeWeakWordsButton"),
+  closeWordBankButton: document.querySelector("#closeWordBankButton"),
   csvFileInput: document.querySelector("#csvFileInput"),
-  dashboardWeakWords: document.querySelector("#dashboardWeakWords"),
   datasetSelect: document.querySelector("#datasetSelect"),
   datasetStatusText: document.querySelector("#datasetStatusText"),
-  directionBreakdown: document.querySelector("#directionBreakdown"),
-  directionChip: document.querySelector("#directionChip"),
+  detailsDirectionText: document.querySelector("#detailsDirectionText"),
+  detailsFocusText: document.querySelector("#detailsFocusText"),
+  detailsModeText: document.querySelector("#detailsModeText"),
+  detailsRangeHint: document.querySelector("#detailsRangeHint"),
+  detailsSelectionCount: document.querySelector("#detailsSelectionCount"),
+  detailsTransitionText: document.querySelector("#detailsTransitionText"),
   directionSelect: document.querySelector("#directionSelect"),
-  exportHistoryButton: document.querySelector("#exportHistoryButton"),
+  exitSessionButton: document.querySelector("#exitSessionButton"),
   favoriteButton: document.querySelector("#favoriteButton"),
   feedbackBox: document.querySelector("#feedbackBox"),
   focusSelect: document.querySelector("#focusSelect"),
-  historyFilterSelect: document.querySelector("#historyFilterSelect"),
-  historyList: document.querySelector("#historyList"),
-  metricAccuracy: document.querySelector("#metricAccuracy"),
+  goToDetailsButton: document.querySelector("#goToDetailsButton"),
+  headerDatasetName: document.querySelector("#headerDatasetName"),
+  headerWordCount: document.querySelector("#headerWordCount"),
   metricAttempts: document.querySelector("#metricAttempts"),
   metricBestStreak: document.querySelector("#metricBestStreak"),
-  metricWeakCount: document.querySelector("#metricWeakCount"),
-  modeBreakdown: document.querySelector("#modeBreakdown"),
-  modeChip: document.querySelector("#modeChip"),
+  metricStudyTime: document.querySelector("#metricStudyTime"),
   modeSelect: document.querySelector("#modeSelect"),
   nextQuestionButton: document.querySelector("#nextQuestionButton"),
+  openWeakWordsButton: document.querySelector("#openWeakWordsButton"),
+  openWordBankButton: document.querySelector("#openWordBankButton"),
   promptText: document.querySelector("#promptText"),
   questionBadge: document.querySelector("#questionBadge"),
-  quizAccuracy: document.querySelector("#quizAccuracy"),
-  quizMetaList: document.querySelector("#quizMetaList"),
-  quizProgress: document.querySelector("#quizProgress"),
-  quizStatusBadge: document.querySelector("#quizStatusBadge"),
-  quizStreak: document.querySelector("#quizStreak"),
   rangeEndInput: document.querySelector("#rangeEndInput"),
-  rangeHint: document.querySelector("#rangeHint"),
   rangeStartInput: document.querySelector("#rangeStartInput"),
-  revealButton: document.querySelector("#revealButton"),
-  restartSessionButton: document.querySelector("#restartSessionButton"),
+  repeatSessionButton: document.querySelector("#repeatSessionButton"),
   resetAllButton: document.querySelector("#resetAllButton"),
   resetProgressButton: document.querySelector("#resetProgressButton"),
-  returnToSetupButton: document.querySelector("#returnToSetupButton"),
-  scoreAccuracyValue: document.querySelector("#scoreAccuracyValue"),
-  scoreAnsweredCount: document.querySelector("#scoreAnsweredCount"),
-  scoreBestStreak: document.querySelector("#scoreBestStreak"),
-  scoreCorrectCount: document.querySelector("#scoreCorrectCount"),
-  scoreDatasetChip: document.querySelector("#scoreDatasetChip"),
-  scoreMistakeBadge: document.querySelector("#scoreMistakeBadge"),
-  scoreMistakeList: document.querySelector("#scoreMistakeList"),
-  scoreNoteList: document.querySelector("#scoreNoteList"),
-  scoreRangeChip: document.querySelector("#scoreRangeChip"),
-  scoreSummaryText: document.querySelector("#scoreSummaryText"),
-  sessionAccuracy: document.querySelector("#sessionAccuracy"),
+  resultAccuracyValue: document.querySelector("#resultAccuracyValue"),
+  resultAnsweredCount: document.querySelector("#resultAnsweredCount"),
+  resultCorrectCount: document.querySelector("#resultCorrectCount"),
+  resultDatasetChip: document.querySelector("#resultDatasetChip"),
+  resultDuration: document.querySelector("#resultDuration"),
+  resultHistoryCount: document.querySelector("#resultHistoryCount"),
+  resultHistoryList: document.querySelector("#resultHistoryList"),
+  resultRangeChip: document.querySelector("#resultRangeChip"),
+  resultSummaryText: document.querySelector("#resultSummaryText"),
+  resultBestStreak: document.querySelector("#resultBestStreak"),
+  revealButton: document.querySelector("#revealButton"),
   sessionLengthSelect: document.querySelector("#sessionLengthSelect"),
-  sessionModeBadge: document.querySelector("#sessionModeBadge"),
-  sessionProgress: document.querySelector("#sessionProgress"),
-  sessionStreak: document.querySelector("#sessionStreak"),
-  setupDatasetChip: document.querySelector("#setupDatasetChip"),
-  setupRangeChip: document.querySelector("#setupRangeChip"),
-  setupSummaryText: document.querySelector("#setupSummaryText"),
   speakButton: document.querySelector("#speakButton"),
   startSessionButton: document.querySelector("#startSessionButton"),
-  studyScreens: document.querySelectorAll(".study-screen"),
+  studyAccuracyText: document.querySelector("#studyAccuracyText"),
+  studyProgressText: document.querySelector("#studyProgressText"),
+  studyStreakText: document.querySelector("#studyStreakText"),
+  studyStatusCorner: document.querySelector("#studyStatusCorner"),
+  systemDatasetName: document.querySelector("#systemDatasetName"),
+  systemRangePreview: document.querySelector("#systemRangePreview"),
+  systemWordCount: document.querySelector("#systemWordCount"),
   tabButtons: document.querySelectorAll(".tab-button"),
   themeSelect: document.querySelector("#themeSelect"),
-  wordIdChip: document.querySelector("#wordIdChip"),
-  jumpToSettingsButton: document.querySelector("#jumpToSettingsButton"),
+  views: document.querySelectorAll(".view"),
+  weakCandidateCount: document.querySelector("#weakCandidateCount"),
+  weakCandidatePreview: document.querySelector("#weakCandidatePreview"),
+  weakWordsDetailList: document.querySelector("#weakWordsDetailList"),
+  wordBankList: document.querySelector("#wordBankList"),
+  dashboardCalendar: document.querySelector("#dashboardCalendar"),
 };
 
 const state = {
   store: loadStore(),
+  currentView: "system",
+  primaryView: "system",
+  returnView: "system",
   currentQuestion: null,
-  currentView: "study",
-  pendingAutoAdvance: null,
-  studyScreen: "setup",
   lastSessionSummary: null,
-  session: createSessionState(),
+  pendingAutoAdvance: null,
   temporaryBackground: "",
+  latestAnalytics: null,
+  session: createSessionState(),
 };
 
 syncStore();
@@ -140,6 +164,10 @@ hydrateControls();
 applyTheme();
 renderAll();
 registerServiceWorker();
+
+function cloneData(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 
 function prepareWords(datasetId, words) {
   return words
@@ -164,15 +192,21 @@ function prepareWords(datasetId, words) {
 
 function createSessionState() {
   return {
+    id: "",
+    active: false,
+    completed: false,
+    startedAt: 0,
+    completedAt: 0,
+    durationMs: 0,
     answered: 0,
     correct: 0,
     streak: 0,
     bestStreak: 0,
     limit: 0,
     attempts: [],
-    recentIds: [],
-    active: false,
-    completed: false,
+    poolWords: [],
+    cycleQueue: [],
+    settings: null,
   };
 }
 
@@ -206,24 +240,27 @@ function loadStore() {
     if (!raw) {
       return {
         settings: { ...DEFAULT_SETTINGS },
-        progress: structuredClone(DEFAULT_PROGRESS),
+        progress: cloneData(DEFAULT_PROGRESS),
         customDataset: null,
       };
     }
 
     const parsed = JSON.parse(raw);
+    const progress = parsed.progress || {};
     return {
       settings: {
         ...DEFAULT_SETTINGS,
         ...(parsed.settings || {}),
       },
       progress: {
-        ...structuredClone(DEFAULT_PROGRESS),
-        ...(parsed.progress || {}),
-        attempts: Array.isArray(parsed.progress?.attempts) ? parsed.progress.attempts : [],
-        wordStats: parsed.progress?.wordStats || {},
-        favorites: parsed.progress?.favorites || {},
-        bestStreak: Number(parsed.progress?.bestStreak || 0),
+        ...cloneData(DEFAULT_PROGRESS),
+        ...progress,
+        attempts: Array.isArray(progress.attempts) ? progress.attempts : [],
+        sessions: Array.isArray(progress.sessions) ? progress.sessions : [],
+        wordStats: progress.wordStats || {},
+        favorites: progress.favorites || {},
+        bestStreak: Number(progress.bestStreak || 0),
+        studyTimeMs: Number(progress.studyTimeMs || 0),
       },
       customDataset: parsed.customDataset || null,
     };
@@ -231,7 +268,7 @@ function loadStore() {
     console.warn("Failed to load local data:", error);
     return {
       settings: { ...DEFAULT_SETTINGS },
-      progress: structuredClone(DEFAULT_PROGRESS),
+      progress: cloneData(DEFAULT_PROGRESS),
       customDataset: null,
     };
   }
@@ -247,10 +284,21 @@ function syncStore() {
   if (!availableIds.has(state.store.settings.activeDataset)) {
     state.store.settings.activeDataset = defaultDatasetMeta.id;
   }
-  state.store.settings.sessionLength = Number(state.store.settings.sessionLength || 20);
-  if (!["off", "correct", "always"].includes(state.store.settings.autoAdvanceMode)) {
-    state.store.settings.autoAdvanceMode = state.store.settings.autoAdvance ? "correct" : "off";
+
+  if (!MODE_LABELS[state.store.settings.mode]) {
+    state.store.settings.mode = DEFAULT_SETTINGS.mode;
   }
+  if (!DIRECTION_LABELS[state.store.settings.direction]) {
+    state.store.settings.direction = DEFAULT_SETTINGS.direction;
+  }
+  if (!FOCUS_LABELS[state.store.settings.focus]) {
+    state.store.settings.focus = DEFAULT_SETTINGS.focus;
+  }
+  if (!TRANSITION_LABELS[state.store.settings.autoAdvanceMode]) {
+    state.store.settings.autoAdvanceMode = DEFAULT_SETTINGS.autoAdvanceMode;
+  }
+
+  state.store.settings.sessionLength = Number(state.store.settings.sessionLength || DEFAULT_SETTINGS.sessionLength);
 }
 
 function getDatasets() {
@@ -273,71 +321,76 @@ function getActiveDataset() {
 }
 
 function getWordLookup() {
-  const map = new Map();
+  const lookup = new Map();
   for (const dataset of getDatasets()) {
     for (const word of dataset.words) {
-      map.set(word.uid, word);
+      lookup.set(word.uid, word);
     }
   }
-  return map;
+  return lookup;
+}
+
+function displayDatasetName(meta) {
+  if (!meta) {
+    return "Default Set";
+  }
+  if (meta.id === defaultDatasetMeta.id) {
+    return "Default Set";
+  }
+  return String(meta.name || meta.source || "Custom Set").trim() || "Custom Set";
 }
 
 function hydrateControls() {
+  populateDatasetSelect();
   el.modeSelect.value = state.store.settings.mode;
+  el.datasetSelect.value = state.store.settings.activeDataset;
+  el.themeSelect.value = state.store.settings.theme;
   el.directionSelect.value = state.store.settings.direction;
   el.focusSelect.value = state.store.settings.focus;
+  el.autoAdvanceSelect.value = state.store.settings.autoAdvanceMode;
+  el.autoPronounceToggle.checked = Boolean(state.store.settings.autoPronounce);
   el.sessionLengthSelect.value = String(state.store.settings.sessionLength);
   el.rangeStartInput.value = state.store.settings.rangeStart;
   el.rangeEndInput.value = state.store.settings.rangeEnd;
-  el.autoPronounceToggle.checked = Boolean(state.store.settings.autoPronounce);
-  el.autoAdvanceSelect.value = getAutoAdvanceMode();
-  el.themeSelect.value = state.store.settings.theme;
-  populateDatasetSelect();
 }
 
 function populateDatasetSelect() {
   const datasets = getDatasets();
   el.datasetSelect.replaceChildren();
-  for (const dataset of datasets) {
+  datasets.forEach((dataset) => {
     const option = document.createElement("option");
     option.value = dataset.meta.id;
-    option.textContent = `${dataset.meta.name} (${dataset.words.length}語)`;
-    if (dataset.meta.id === state.store.settings.activeDataset) {
-      option.selected = true;
-    }
+    option.textContent = `${displayDatasetName(dataset.meta)} (${dataset.words.length})`;
     el.datasetSelect.append(option);
-  }
+  });
 }
 
 function bindEvents() {
   el.tabButtons.forEach((button) => {
-    button.addEventListener("click", () => switchView(button.dataset.viewTarget || "study"));
+    button.addEventListener("click", () => switchView(button.dataset.viewTarget || "system"));
   });
 
   el.modeSelect.addEventListener("change", () => updateSetting("mode", el.modeSelect.value));
-  el.directionSelect.addEventListener("change", () => updateSetting("direction", el.directionSelect.value));
-  el.focusSelect.addEventListener("change", () => updateSetting("focus", el.focusSelect.value));
-  el.sessionLengthSelect.addEventListener("change", () => updateSetting("sessionLength", Number(el.sessionLengthSelect.value)));
-  el.rangeStartInput.addEventListener("input", () => updateRangeSetting("rangeStart", el.rangeStartInput.value));
-  el.rangeEndInput.addEventListener("input", () => updateRangeSetting("rangeEnd", el.rangeEndInput.value));
-  el.autoPronounceToggle.addEventListener("change", () => updateSetting("autoPronounce", el.autoPronounceToggle.checked));
-  el.autoAdvanceSelect.addEventListener("change", () => updateSetting("autoAdvanceMode", el.autoAdvanceSelect.value));
+  el.datasetSelect.addEventListener("change", () => handleDatasetChange());
   el.themeSelect.addEventListener("change", () => {
     updateSetting("theme", el.themeSelect.value);
     applyTheme();
-    renderAll();
   });
-  el.datasetSelect.addEventListener("change", () => {
-    updateSetting("activeDataset", el.datasetSelect.value);
-    state.currentQuestion = null;
-    state.session = createSessionState();
-    state.studyScreen = "setup";
-    state.lastSessionSummary = null;
-    setFeedback("データセットを切り替えました。新しいセッションで出題されます。");
-    renderAll();
-  });
+  el.directionSelect.addEventListener("change", () => updateSetting("direction", el.directionSelect.value));
+  el.focusSelect.addEventListener("change", () => updateSetting("focus", el.focusSelect.value));
+  el.autoAdvanceSelect.addEventListener("change", () => updateSetting("autoAdvanceMode", el.autoAdvanceSelect.value));
+  el.autoPronounceToggle.addEventListener("change", () => updateSetting("autoPronounce", el.autoPronounceToggle.checked));
+  el.sessionLengthSelect.addEventListener("change", () => updateSetting("sessionLength", Number(el.sessionLengthSelect.value)));
+  el.rangeStartInput.addEventListener("input", () => updateRangeSetting("rangeStart", el.rangeStartInput.value));
+  el.rangeEndInput.addEventListener("input", () => updateRangeSetting("rangeEnd", el.rangeEndInput.value));
 
+  el.goToDetailsButton.addEventListener("click", () => switchView("details"));
+  el.backToSystemButton.addEventListener("click", () => switchView("system"));
   el.startSessionButton.addEventListener("click", () => startSession());
+  el.backToDetailsButton.addEventListener("click", () => switchView("details"));
+  el.repeatSessionButton.addEventListener("click", () => repeatDisplayedSession());
+  el.exitSessionButton.addEventListener("click", () => switchView("details"));
+
   el.nextQuestionButton.addEventListener("click", () => {
     if (state.session.completed || !state.session.active) {
       startSession();
@@ -345,25 +398,48 @@ function bindEvents() {
     }
     nextQuestion();
   });
-  el.jumpToSettingsButton.addEventListener("click", () => switchView("settings"));
-  el.backToSetupButton.addEventListener("click", () => moveToSetupScreen());
-  el.restartSessionButton.addEventListener("click", () => startSession());
-  el.returnToSetupButton.addEventListener("click", () => moveToSetupScreen());
-  el.revealButton.addEventListener("click", revealCurrentAnswer);
+
+  el.revealButton.addEventListener("click", () => revealCurrentAnswer());
   el.speakButton.addEventListener("click", () => {
-    if (state.currentQuestion) {
-      speakText(state.currentQuestion.word.english);
+    const question = state.currentQuestion;
+    if (question) {
+      speakText(question.word.english);
     }
   });
-  el.favoriteButton.addEventListener("click", toggleFavoriteForCurrentWord);
+  el.favoriteButton.addEventListener("click", () => toggleFavoriteForCurrentWord());
   el.feedbackBox.addEventListener("click", () => {
     advanceQuestionFromGesture();
   });
   bindAdvanceSwipeSurface(el.answerArea);
   bindAdvanceSwipeSurface(el.feedbackBox);
 
-  el.historyFilterSelect.addEventListener("change", renderHistory);
-  el.exportHistoryButton.addEventListener("click", exportStudyData);
+  el.openWeakWordsButton.addEventListener("click", () => openAuxView("weak-words"));
+  el.closeWeakWordsButton.addEventListener("click", () => closeAuxView());
+  el.openWordBankButton.addEventListener("click", () => openAuxView("word-bank", "system"));
+  el.closeWordBankButton.addEventListener("click", () => closeAuxView());
+
+  el.csvFileInput.addEventListener("change", async () => {
+    const file = el.csvFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+    await importCsvFile(file);
+    el.csvFileInput.value = "";
+  });
+
+  el.backgroundFileInput.addEventListener("change", async () => {
+    const file = el.backgroundFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+    await applyBackgroundFromFile(file);
+    el.backgroundFileInput.value = "";
+  });
+
+  el.clearBackgroundButton.addEventListener("click", () => clearBackgroundImage());
+  el.clearCacheButton.addEventListener("click", () => clearApplicationCache());
+  el.resetProgressButton.addEventListener("click", () => resetProgressOnly());
+  el.resetAllButton.addEventListener("click", () => resetAllLocalData());
   document.addEventListener("keydown", handleKeyboardShortcuts);
 }
 
@@ -374,7 +450,7 @@ function updateSetting(key, value) {
 }
 
 function updateRangeSetting(key, value) {
-  const sanitized = value.replace(/[^\d]/g, "");
+  const sanitized = String(value).replace(/[^\d]/g, "");
   state.store.settings[key] = sanitized;
   if (key === "rangeStart") {
     el.rangeStartInput.value = sanitized;
@@ -386,24 +462,321 @@ function updateRangeSetting(key, value) {
   renderAll();
 }
 
-function getAutoAdvanceMode() {
-  const mode = state.store.settings.autoAdvanceMode;
-  if (mode === "off" || mode === "correct" || mode === "always") {
-    return mode;
+function handleDatasetChange() {
+  updateSetting("activeDataset", el.datasetSelect.value);
+  state.currentQuestion = null;
+  state.session = createSessionState();
+  state.lastSessionSummary = null;
+  clearPendingAutoAdvance();
+  renderAll();
+}
+
+function switchView(viewName) {
+  state.currentView = viewName;
+  if (PRIMARY_VIEWS.has(viewName)) {
+    state.primaryView = viewName;
+    state.returnView = viewName;
   }
-  return state.store.settings.autoAdvance ? "correct" : "off";
+
+  el.views.forEach((view) => {
+    view.classList.toggle("is-active", view.id === `view-${viewName}`);
+  });
+
+  el.tabButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.viewTarget === state.primaryView);
+  });
+}
+
+function openAuxView(viewName, returnView = state.primaryView) {
+  state.returnView = returnView;
+  state.currentView = viewName;
+  el.views.forEach((view) => {
+    view.classList.toggle("is-active", view.id === `view-${viewName}`);
+  });
+  el.tabButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.viewTarget === state.returnView);
+  });
+}
+
+function closeAuxView() {
+  switchView(state.returnView || "dashboard");
+}
+
+function snapshotSettings(dataset, selectedWords) {
+  return {
+    activeDataset: state.store.settings.activeDataset,
+    datasetName: displayDatasetName(dataset.meta),
+    datasetId: dataset.meta.id,
+    mode: state.store.settings.mode,
+    direction: state.store.settings.direction,
+    focus: state.store.settings.focus,
+    sessionLength: Number(state.store.settings.sessionLength || 0),
+    rangeStart: state.store.settings.rangeStart,
+    rangeEnd: state.store.settings.rangeEnd,
+    rangeLabel: formatRangeLabel(dataset, state.store.settings.rangeStart, state.store.settings.rangeEnd),
+    autoPronounce: Boolean(state.store.settings.autoPronounce),
+    autoAdvanceMode: state.store.settings.autoAdvanceMode,
+    poolSize: selectedWords.length,
+  };
+}
+
+function restoreSettingsFromSnapshot(snapshot) {
+  if (!snapshot) {
+    return;
+  }
+
+  state.store.settings.activeDataset = snapshot.activeDataset || defaultDatasetMeta.id;
+  state.store.settings.mode = snapshot.mode || DEFAULT_SETTINGS.mode;
+  state.store.settings.direction = snapshot.direction || DEFAULT_SETTINGS.direction;
+  state.store.settings.focus = snapshot.focus || DEFAULT_SETTINGS.focus;
+  state.store.settings.sessionLength = Number(snapshot.sessionLength || DEFAULT_SETTINGS.sessionLength);
+  state.store.settings.rangeStart = String(snapshot.rangeStart || "");
+  state.store.settings.rangeEnd = String(snapshot.rangeEnd || "");
+  state.store.settings.autoPronounce = Boolean(snapshot.autoPronounce);
+  state.store.settings.autoAdvanceMode = snapshot.autoAdvanceMode || DEFAULT_SETTINGS.autoAdvanceMode;
+
+  syncStore();
+  saveStore();
+  hydrateControls();
+  renderAll();
+}
+
+function startSession() {
+  const dataset = getActiveDataset();
+  const rangeWords = getWordsInRange(dataset.words);
+  const selectedWords = getCandidatesForFocus(rangeWords);
+  const poolWords = selectedWords.length ? selectedWords : rangeWords;
+
+  if (!poolWords.length) {
+    state.currentQuestion = null;
+    state.session = createSessionState();
+    setFeedback("No words match the current setup.", "wrong");
+    switchView("details");
+    renderAll();
+    return;
+  }
+
+  clearPendingAutoAdvance();
+  const settings = snapshotSettings(dataset, poolWords);
+  state.session = {
+    ...createSessionState(),
+    id: createSessionId(),
+    active: true,
+    startedAt: Date.now(),
+    limit: Number(settings.sessionLength || 0),
+    poolWords,
+    cycleQueue: buildCycleQueue(poolWords),
+    settings,
+  };
+  state.currentQuestion = null;
+  state.lastSessionSummary = null;
+  switchView("study");
+  nextQuestion(true);
+}
+
+function createSessionId() {
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function buildCycleQueue(words) {
+  return shuffle(words);
+}
+
+function nextQuestion(isFreshStart = false) {
+  clearPendingAutoAdvance();
+
+  if (!state.session.active) {
+    startSession();
+    return;
+  }
+
+  if (!isFreshStart && state.currentQuestion && !state.currentQuestion.answered && !state.session.completed) {
+    setFeedback("Answer or reveal first.", "");
+    return;
+  }
+
+  if (!isFreshStart && state.session.completed) {
+    return;
+  }
+
+  const question = buildQuestion();
+  state.currentQuestion = question;
+
+  if (!question) {
+    setFeedback("No question available.", "wrong");
+    renderAll();
+    return;
+  }
+
+  if (state.session.settings?.autoPronounce) {
+    speakText(question.word.english);
+  }
+
+  setFeedback(getPromptFeedback(question), "");
+  renderAll();
+}
+
+function getPromptFeedback(question) {
+  if (!question) {
+    return "";
+  }
+  if (question.mode === "multiple") {
+    return "Pick the best answer.";
+  }
+  if (question.mode === "input") {
+    return "Type the answer and press Enter.";
+  }
+  if (question.mode === "card") {
+    return "Tap to flip. Swipe after scoring to move on.";
+  }
+  return "Reveal the answer, then mark it.";
+}
+
+function buildQuestion() {
+  if (!state.session.poolWords.length) {
+    return null;
+  }
+
+  if (!state.session.cycleQueue.length) {
+    state.session.cycleQueue = buildCycleQueue(state.session.poolWords);
+  }
+
+  const word = state.session.cycleQueue.shift();
+  if (!word) {
+    return null;
+  }
+
+  const settings = state.session.settings;
+  const direction = settings.direction === "mixed"
+    ? (Math.random() < 0.5 ? "en-to-ja" : "ja-to-en")
+    : settings.direction;
+  const mode = settings.mode;
+
+  return {
+    word,
+    datasetName: settings.datasetName,
+    direction,
+    mode,
+    prompt: direction === "en-to-ja" ? word.english : word.japanese,
+    answered: false,
+    correct: false,
+    revealed: false,
+    selectedChoiceUid: "",
+    options: mode === "multiple" ? buildMultipleChoiceOptions(word, state.session.poolWords, direction) : [],
+  };
+}
+
+function buildMultipleChoiceOptions(word, pool, direction) {
+  const labelFor = (candidate) => (direction === "en-to-ja" ? candidate.japanese : candidate.english);
+  const seen = new Set([normalizeBasic(labelFor(word))]);
+  const distractors = [];
+
+  shuffle(pool.filter((candidate) => candidate.uid !== word.uid)).forEach((candidate) => {
+    if (distractors.length >= 3) {
+      return;
+    }
+    const label = normalizeBasic(labelFor(candidate));
+    if (seen.has(label)) {
+      return;
+    }
+    seen.add(label);
+    distractors.push(candidate);
+  });
+
+  return shuffle([word, ...distractors]).map((candidate, index) => ({
+    index: index + 1,
+    uid: candidate.uid,
+    label: labelFor(candidate),
+    isCorrect: candidate.uid === word.uid,
+  }));
+}
+
+function getCandidatesForFocus(words, focus = state.store.settings.focus) {
+  if (focus === "favorites") {
+    return words.filter((word) => state.store.progress.favorites[word.uid]);
+  }
+
+  if (focus === "recent-mistakes") {
+    const recentMistakes = new Set(
+      state.store.progress.attempts
+        .filter((attempt) => !attempt.correct)
+        .slice(0, 80)
+        .map((attempt) => attempt.uid)
+    );
+    return words.filter((word) => recentMistakes.has(word.uid));
+  }
+
+  if (focus === "weak") {
+    const weakIds = new Set(getWeakWords(200).map((entry) => entry.word.uid));
+    return words.filter((word) => weakIds.has(word.uid));
+  }
+
+  return words;
+}
+
+function getSelectedRange(rawStart = state.store.settings.rangeStart, rawEnd = state.store.settings.rangeEnd) {
+  const start = rawStart ? Number(rawStart) : null;
+  const end = rawEnd ? Number(rawEnd) : null;
+
+  if (start !== null && end !== null && start > end) {
+    return { start: end, end: start };
+  }
+  return { start, end };
+}
+
+function getWordsInRange(words, rawStart = state.store.settings.rangeStart, rawEnd = state.store.settings.rangeEnd) {
+  const { start, end } = getSelectedRange(rawStart, rawEnd);
+  if (start === null && end === null) {
+    return words;
+  }
+
+  return words.filter((word) => {
+    if (start !== null && word.sectionNumber < start) {
+      return false;
+    }
+    if (end !== null && word.sectionNumber > end) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function getDatasetRange(dataset = getActiveDataset()) {
+  return {
+    min: dataset.words[0]?.sectionNumber ?? 1,
+    max: dataset.words[dataset.words.length - 1]?.sectionNumber ?? dataset.words.length,
+  };
+}
+
+function formatRangeLabel(dataset = getActiveDataset(), rawStart = state.store.settings.rangeStart, rawEnd = state.store.settings.rangeEnd) {
+  const { min, max } = getDatasetRange(dataset);
+  const { start, end } = getSelectedRange(rawStart, rawEnd);
+  if (start === null && end === null) {
+    return `${min} - ${max}`;
+  }
+  if (start !== null && end !== null) {
+    return `${start} - ${end}`;
+  }
+  if (start !== null) {
+    return `${start} - ${max}`;
+  }
+  return `${min} - ${end}`;
+}
+
+function getAutoAdvanceMode(settings = state.store.settings) {
+  return TRANSITION_LABELS[settings.autoAdvanceMode] ? settings.autoAdvanceMode : DEFAULT_SETTINGS.autoAdvanceMode;
 }
 
 function shouldAutoAdvanceAfterAnswer(correct) {
   if (state.session.completed) {
     return false;
   }
-  const mode = getAutoAdvanceMode();
+  const mode = getAutoAdvanceMode(state.session.settings || state.store.settings);
   return mode === "always" || (mode === "correct" && correct);
 }
 
 function focusNextQuestionButton() {
-  if (state.session.completed || state.studyScreen !== "quiz") {
+  if (!state.session.active || state.session.completed || !state.currentQuestion?.answered) {
     return;
   }
   requestAnimationFrame(() => el.nextQuestionButton?.focus());
@@ -412,9 +785,9 @@ function focusNextQuestionButton() {
 function canAdvanceFromGesture() {
   return (
     state.currentView === "study" &&
-    state.studyScreen === "quiz" &&
-    Boolean(state.currentQuestion?.answered) &&
-    !state.session.completed
+    state.session.active &&
+    !state.session.completed &&
+    Boolean(state.currentQuestion?.answered)
   );
 }
 
@@ -454,6 +827,9 @@ function bindAdvanceSwipeSurface(element) {
 
 function handlePostAnswer(correct) {
   renderAll();
+  if (state.session.completed) {
+    return;
+  }
   if (shouldAutoAdvanceAfterAnswer(correct)) {
     state.pendingAutoAdvance = window.setTimeout(() => nextQuestion(), AUTO_ADVANCE_DELAY);
     return;
@@ -461,326 +837,462 @@ function handlePostAnswer(correct) {
   focusNextQuestionButton();
 }
 
-function moveToSetupScreen() {
-  clearPendingAutoAdvance();
-  state.studyScreen = "setup";
-  state.session = createSessionState();
-  state.currentQuestion = null;
-  renderAll();
-}
-
-function getFocusLabel(focus) {
-  const labels = {
-    all: "All",
-    weak: "Weak words",
-    favorites: "Favorites",
-    "recent-mistakes": "Recent mistakes",
-  };
-  return labels[focus] || focus;
-}
-
-function switchView(viewName) {
-  state.currentView = viewName;
-  document.querySelectorAll(".view").forEach((view) => {
-    view.classList.toggle("is-active", view.id === `view-${viewName}`);
-  });
-  el.tabButtons.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.viewTarget === viewName);
-  });
-}
-
-function startSession() {
-  const rangeWords = getWordsInRange(getActiveDataset().words);
-  if (!rangeWords.length) {
-    state.studyScreen = "setup";
-    state.currentQuestion = null;
-    setFeedback("指定した範囲に単語がありません。開始番号と終了番号を見直してください。", "wrong");
-    renderAll();
-    return;
-  }
-
-  clearPendingAutoAdvance();
-  state.session = {
-    answered: 0,
-    correct: 0,
-    streak: 0,
-    bestStreak: 0,
-    limit: Number(state.store.settings.sessionLength || 0),
-    attempts: [],
-    recentIds: [],
-    active: true,
-    completed: false,
-  };
-  state.lastSessionSummary = null;
-  state.studyScreen = "quiz";
-  switchView("study");
-  nextQuestion(true);
-}
-
-function nextQuestion(isFreshStart = false) {
-  clearPendingAutoAdvance();
-  if (!state.session.active) {
-    startSession();
-    return;
-  }
-  if (!isFreshStart && state.session.completed) {
-    return;
-  }
-
-  const question = buildQuestion();
-  state.currentQuestion = question;
-
+function revealCurrentAnswer() {
+  const question = state.currentQuestion;
   if (!question) {
-    setFeedback("出題できる単語が見つかりませんでした。条件を変えるか、CSVを読み込んでみてください。");
-    renderAll();
     return;
   }
 
-  if (state.store.settings.autoPronounce) {
-    speakText(question.word.english);
+  if (question.mode === "card") {
+    toggleWordCardReveal();
+    return;
   }
 
-  setFeedback("回答すると、その結果がこの端末に保存されます。");
-  renderAll();
+  if (question.mode === "flashcard") {
+    question.revealed = !question.revealed;
+    renderQuestion();
+    setFeedback(question.revealed ? "Mark the card when ready." : "Hidden.", "");
+    return;
+  }
+
+  setFeedback(`Answer: ${formatExpectedAnswer(question.word, question.direction)}`, "");
 }
 
-function buildQuestion() {
-  const dataset = getActiveDataset();
-  const words = getWordsInRange(dataset.words);
-  if (!words.length) {
-    return null;
+function submitMultipleChoice(selectedUid, label) {
+  const question = state.currentQuestion;
+  if (!question || question.answered) {
+    return;
   }
 
-  const direction = state.store.settings.direction === "mixed"
-    ? (Math.random() < 0.5 ? "en-to-ja" : "ja-to-en")
-    : state.store.settings.direction;
-  const candidates = getCandidatesForFocus(words);
-  const pool = candidates.length ? candidates : words;
-  const word = selectWeightedWord(pool, direction);
-  if (!word) {
-    return null;
+  const correct = selectedUid === question.word.uid;
+  question.answered = true;
+  question.correct = correct;
+  question.selectedChoiceUid = selectedUid;
+
+  recordAttempt({
+    correct,
+    direction: question.direction,
+    mode: question.mode,
+    question,
+    selectedChoiceUid: selectedUid,
+    userAnswer: label,
+  });
+
+  setFeedback(
+    correct
+      ? `${question.word.english} = ${question.word.japanese}`
+      : `Correct: ${question.word.english} = ${question.word.japanese}${getSessionCompletionSuffix()}`,
+    correct ? "correct" : "wrong"
+  );
+  handlePostAnswer(correct);
+}
+
+function submitTypedAnswer(value) {
+  const question = state.currentQuestion;
+  if (!question || question.answered) {
+    return;
   }
 
-  state.session.recentIds.unshift(word.uid);
-  state.session.recentIds = state.session.recentIds.slice(0, 8);
+  const result = evaluateTypedAnswer(value, question.word, question.direction);
+  question.answered = true;
+  question.correct = result.correct;
 
-  const mode = state.store.settings.mode;
-  return {
-    word,
-    datasetName: dataset.meta.name,
-    prompt: direction === "en-to-ja" ? word.english : word.japanese,
+  recordAttempt({
+    correct: result.correct,
+    direction: question.direction,
+    mode: question.mode,
+    question,
+    userAnswer: value.trim(),
+  });
+
+  setFeedback(
+    result.correct
+      ? `${question.word.english} = ${question.word.japanese}`
+      : `Answer: ${result.accepted.join(" / ") || formatExpectedAnswer(question.word, question.direction)}${getSessionCompletionSuffix()}`,
+    result.correct ? "correct" : "wrong"
+  );
+  handlePostAnswer(result.correct);
+}
+
+function submitFlashcardResult(correct) {
+  const question = state.currentQuestion;
+  if (!question || question.answered || !question.revealed) {
+    return;
+  }
+
+  question.answered = true;
+  question.correct = correct;
+
+  recordAttempt({
+    correct,
+    direction: question.direction,
+    mode: question.mode,
+    question,
+    userAnswer: correct ? "Known" : "Again",
+  });
+
+  setFeedback(
+    correct ? `Saved: ${question.word.english}` : `Review: ${question.word.english}${getSessionCompletionSuffix()}`,
+    correct ? "correct" : "wrong"
+  );
+  handlePostAnswer(correct);
+}
+
+function recordAttempt({ correct, direction, mode, question, userAnswer, selectedChoiceUid = "" }) {
+  const at = Date.now();
+  const expectedAnswer = formatExpectedAnswer(question.word, direction);
+  const attempt = {
+    sessionId: state.session.id,
+    uid: question.word.uid,
+    datasetId: state.session.settings?.datasetId || state.store.settings.activeDataset,
+    wordId: question.word.id,
+    english: question.word.english,
+    japanese: question.word.japanese,
     direction,
     mode,
-    answered: false,
-    correct: false,
-    revealed: false,
-    selectedChoiceUid: "",
-    options: mode === "multiple" ? buildMultipleChoiceOptions(word, pool, direction) : [],
+    correct,
+    userAnswer,
+    expectedAnswer,
+    selectedChoiceUid,
+    at,
+  };
+
+  state.store.progress.attempts.unshift(attempt);
+  state.store.progress.attempts = state.store.progress.attempts.slice(0, HISTORY_LIMIT);
+
+  const stat = state.store.progress.wordStats[question.word.uid] || createWordStat();
+  stat.asked += 1;
+  stat.correct += correct ? 1 : 0;
+  stat.incorrect += correct ? 0 : 1;
+  stat.lastSeenAt = at;
+
+  stat.byDirection[direction] = stat.byDirection[direction] || { asked: 0, correct: 0, incorrect: 0 };
+  stat.byDirection[direction].asked += 1;
+  stat.byDirection[direction].correct += correct ? 1 : 0;
+  stat.byDirection[direction].incorrect += correct ? 0 : 1;
+
+  stat.byMode[mode] = stat.byMode[mode] || { asked: 0, correct: 0, incorrect: 0 };
+  stat.byMode[mode].asked += 1;
+  stat.byMode[mode].correct += correct ? 1 : 0;
+  stat.byMode[mode].incorrect += correct ? 0 : 1;
+
+  if (!correct && mode === "multiple" && selectedChoiceUid && selectedChoiceUid !== question.word.uid) {
+    stat.confusions[selectedChoiceUid] = (stat.confusions[selectedChoiceUid] || 0) + 1;
+  }
+
+  state.store.progress.wordStats[question.word.uid] = stat;
+  state.session.answered += 1;
+  state.session.correct += correct ? 1 : 0;
+  state.session.streak = correct ? state.session.streak + 1 : 0;
+  state.session.bestStreak = Math.max(state.session.bestStreak, state.session.streak);
+  state.session.attempts.push(attempt);
+  state.store.progress.bestStreak = Math.max(state.store.progress.bestStreak || 0, state.session.streak);
+
+  if (state.session.limit > 0 && state.session.answered >= state.session.limit) {
+    completeSession();
+  }
+
+  saveStore();
+}
+
+function completeSession() {
+  if (state.session.completed) {
+    return;
+  }
+
+  state.session.completed = true;
+  state.session.active = false;
+  state.session.completedAt = Date.now();
+  state.session.durationMs = Math.max(state.session.completedAt - state.session.startedAt, 0);
+  state.store.progress.studyTimeMs += state.session.durationMs;
+
+  const summary = summarizeSession(state.session);
+  state.lastSessionSummary = summary;
+  state.store.progress.sessions.unshift({
+    id: summary.id,
+    startedAt: summary.startedAt,
+    completedAt: summary.completedAt,
+    durationMs: summary.durationMs,
+    answered: summary.answered,
+    correct: summary.correct,
+    accuracy: summary.accuracy,
+    bestStreak: summary.bestStreak,
+    datasetName: summary.datasetName,
+    datasetId: summary.datasetId,
+    rangeLabel: summary.rangeLabel,
+    settingsSnapshot: summary.settingsSnapshot,
+  });
+  state.store.progress.sessions = state.store.progress.sessions.slice(0, SESSION_LOG_LIMIT);
+  state.currentQuestion = null;
+  clearPendingAutoAdvance();
+  saveStore();
+  switchView("results");
+}
+
+function summarizeSession(session) {
+  const attempts = [...session.attempts];
+  const mistakes = attempts.filter((attempt) => !attempt.correct);
+  const settingsSnapshot = cloneData(session.settings || DEFAULT_SETTINGS);
+
+  return {
+    id: session.id,
+    startedAt: session.startedAt,
+    completedAt: session.completedAt,
+    durationMs: session.durationMs,
+    answered: session.answered,
+    correct: session.correct,
+    accuracy: session.answered ? session.correct / session.answered : 0,
+    bestStreak: session.bestStreak,
+    attempts,
+    mistakes,
+    datasetName: session.settings?.datasetName || "Default Set",
+    datasetId: session.settings?.datasetId || defaultDatasetMeta.id,
+    rangeLabel: session.settings?.rangeLabel || formatRangeLabel(),
+    settingsSnapshot,
   };
 }
 
-function getCandidatesForFocus(words) {
-  const focus = state.store.settings.focus;
-  if (focus === "favorites") {
-    return words.filter((word) => state.store.progress.favorites[word.uid]);
-  }
-  if (focus === "recent-mistakes") {
-    const recentMistakes = new Set(
-      state.store.progress.attempts
-        .filter((attempt) => !attempt.correct)
-        .slice(0, 40)
-        .map((attempt) => attempt.uid)
-    );
-    return words.filter((word) => recentMistakes.has(word.uid));
-  }
-  if (focus === "weak") {
-    const weakIds = new Set(getWeakWords(120).map((entry) => entry.word.uid));
-    return words.filter((word) => weakIds.has(word.uid));
-  }
-  return words;
-}
-
-function getWordsInRange(words) {
-  const { start, end } = getSelectedRange();
-  if (start === null && end === null) {
-    return words;
+function getDisplayedSessionSummary() {
+  if (state.lastSessionSummary) {
+    return state.lastSessionSummary;
   }
 
-  return words.filter((word) => {
-    if (start !== null && word.sectionNumber < start) {
-      return false;
-    }
-    if (end !== null && word.sectionNumber > end) {
-      return false;
-    }
-    return true;
-  });
-}
-
-function getSelectedRange() {
-  const rawStart = state.store.settings.rangeStart;
-  const rawEnd = state.store.settings.rangeEnd;
-  const parsedStart = rawStart ? Number(rawStart) : null;
-  const parsedEnd = rawEnd ? Number(rawEnd) : null;
-
-  if (parsedStart !== null && parsedEnd !== null && parsedStart > parsedEnd) {
-    return { start: parsedEnd, end: parsedStart };
-  }
-  return { start: parsedStart, end: parsedEnd };
-}
-
-function formatRangeLabel(dataset = getActiveDataset()) {
-  const { start, end } = getSelectedRange();
-  const min = dataset.words[0]?.sectionNumber ?? 1;
-  const max = dataset.words[dataset.words.length - 1]?.sectionNumber ?? dataset.words.length;
-  if (start === null && end === null) {
-    return `${min} - ${max}`;
-  }
-  if (start !== null && end !== null) {
-    return `${start} - ${end}`;
-  }
-  if (start !== null) {
-    return `${start} - ${max}`;
-  }
-  return `${min} - ${end}`;
-}
-
-function selectWeightedWord(words, direction) {
-  const recentSet = new Set(state.session.recentIds);
-  const filtered = words.filter((word) => !recentSet.has(word.uid));
-  const source = filtered.length >= 4 ? filtered : words;
-  if (!source.length) {
+  const latestSession = state.store.progress.sessions[0];
+  if (!latestSession) {
     return null;
   }
 
-  const totalWeight = source.reduce((sum, word) => sum + getWordWeight(word.uid, direction), 0);
-  let threshold = Math.random() * totalWeight;
-  for (const word of source) {
-    threshold -= getWordWeight(word.uid, direction);
-    if (threshold <= 0) {
-      return word;
-    }
-  }
-  return source[source.length - 1];
+  const attempts = state.store.progress.attempts
+    .filter((attempt) => attempt.sessionId === latestSession.id)
+    .sort((left, right) => left.at - right.at);
+
+  return {
+    id: latestSession.id,
+    startedAt: latestSession.startedAt,
+    completedAt: latestSession.completedAt,
+    durationMs: latestSession.durationMs,
+    answered: latestSession.answered,
+    correct: latestSession.correct,
+    accuracy: latestSession.accuracy,
+    bestStreak: latestSession.bestStreak,
+    attempts,
+    mistakes: attempts.filter((attempt) => !attempt.correct),
+    datasetName: latestSession.datasetName,
+    datasetId: latestSession.datasetId,
+    rangeLabel: latestSession.rangeLabel,
+    settingsSnapshot: latestSession.settingsSnapshot || null,
+  };
 }
 
-function getWordWeight(uid, direction) {
-  const stats = state.store.progress.wordStats[uid] || createWordStat();
-  const directionStats = stats.byDirection?.[direction] || { asked: 0, incorrect: 0, correct: 0 };
-  const overallAccuracy = stats.asked ? stats.correct / stats.asked : 0;
-  const directionAccuracy = directionStats.asked ? directionStats.correct / directionStats.asked : 0;
-  return (
-    1 +
-    stats.incorrect * 1.8 +
-    directionStats.incorrect * 1.4 +
-    (stats.asked ? (1 - overallAccuracy) * 2.2 : 1.3) +
-    (directionStats.asked ? (1 - directionAccuracy) * 1.6 : 0.8)
-  );
+function repeatDisplayedSession() {
+  const summary = getDisplayedSessionSummary();
+  if (summary?.settingsSnapshot) {
+    restoreSettingsFromSnapshot(summary.settingsSnapshot);
+  }
+  startSession();
 }
 
-function buildMultipleChoiceOptions(word, pool, direction) {
-  const choiceLabel = (item) => (direction === "en-to-ja" ? item.japanese : item.english);
-  const seen = new Set([normalizeBasic(choiceLabel(word))]);
-  const distractors = [];
-  const shuffled = shuffle([...pool].filter((candidate) => candidate.uid !== word.uid));
-
-  for (const candidate of shuffled) {
-    const label = normalizeBasic(choiceLabel(candidate));
-    if (seen.has(label)) {
-      continue;
-    }
-    seen.add(label);
-    distractors.push(candidate);
-    if (distractors.length === 3) {
-      break;
-    }
+function evaluateTypedAnswer(value, word, direction) {
+  const guess = value.trim();
+  const accepted = direction === "en-to-ja" ? getJapaneseAnswerCandidates(word.japanese) : getEnglishAnswerCandidates(word.english);
+  if (!guess) {
+    return { correct: false, accepted };
   }
 
-  return shuffle([word, ...distractors]).map((candidate, index) => ({
-    index: index + 1,
-    uid: candidate.uid,
-    label: choiceLabel(candidate),
-    isCorrect: candidate.uid === word.uid,
-  }));
+  const normalizedGuess = direction === "en-to-ja" ? normalizeJapanese(guess) : normalizeEnglish(guess);
+  const correct = accepted.some((candidate) => {
+    const normalizedCandidate = direction === "en-to-ja" ? normalizeJapanese(candidate) : normalizeEnglish(candidate);
+    if (normalizedGuess === normalizedCandidate) {
+      return true;
+    }
+    if (direction === "en-to-ja") {
+      return normalizedCandidate.includes(normalizedGuess) || normalizedGuess.includes(normalizedCandidate);
+    }
+    return false;
+  });
+
+  return { correct, accepted };
+}
+
+function getEnglishAnswerCandidates(text) {
+  const base = String(text).replace(/[()]/g, " ");
+  const segments = [base, ...base.split(/[;,/]/g)];
+  return [...new Set(segments.map((segment) => segment.trim()).filter(Boolean))];
+}
+
+function getJapaneseAnswerCandidates(text) {
+  const base = String(text)
+    .replace(/[()（）]/g, " ")
+    .replace(/・/g, " ")
+    .trim();
+  const segments = [base, ...base.split(/[;,/、，]/g)];
+  return [...new Set(segments.map((segment) => segment.trim()).filter(Boolean))];
+}
+
+function normalizeEnglish(text) {
+  return String(text)
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/['’`]/g, "")
+    .replace(/[._!?-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeJapanese(text) {
+  return String(text)
+    .normalize("NFKC")
+    .replace(/[ 　\t\r\n]/g, "")
+    .replace(/[・,.;/()（）「」『』\[\]]/g, "")
+    .trim();
+}
+
+function normalizeBasic(text) {
+  return String(text)
+    .normalize("NFKC")
+    .replace(/[ 　\t\r\n]/g, "")
+    .trim();
+}
+
+function formatExpectedAnswer(word, direction) {
+  return direction === "en-to-ja" ? word.japanese : word.english;
+}
+
+function toggleFavoriteForCurrentWord() {
+  const question = state.currentQuestion;
+  if (!question) {
+    return;
+  }
+
+  const favorites = state.store.progress.favorites;
+  favorites[question.word.uid] = !favorites[question.word.uid];
+  if (!favorites[question.word.uid]) {
+    delete favorites[question.word.uid];
+  }
+
+  saveStore();
+  renderQuestion();
+  renderWordBank();
 }
 
 function renderAll() {
-  renderStudyFlow();
-  renderQuestion();
-  renderSession();
-  renderScore();
-  renderQuickAnalytics();
+  renderHeader();
+  renderSystem();
+  renderDetails();
+  renderStudy();
+  renderResults();
   renderDashboard();
-  renderHistory();
-  renderSettings();
+  renderWeakWords();
+  renderWordBank();
 }
 
-function renderStudyFlow() {
+function renderHeader() {
   const dataset = getActiveDataset();
-  const selectedWords = getWordsInRange(dataset.words);
-  const rangeLabel = formatRangeLabel(dataset);
-  const setupCopy = `${MODE_LABELS[state.store.settings.mode]} / ${DIRECTION_LABELS[state.store.settings.direction]} / ${selectedWords.length} words selected`;
+  el.headerDatasetName.textContent = displayDatasetName(dataset.meta);
+  el.headerWordCount.textContent = `${dataset.words.length} words`;
+}
 
-  el.studyScreens.forEach((screen) => {
-    screen.classList.toggle("is-active", screen.id === `study-screen-${state.studyScreen}`);
-  });
+function renderSystem() {
+  const dataset = getActiveDataset();
+  const rangeWords = getWordsInRange(dataset.words);
+  const previewWords = getCandidatesForFocus(rangeWords);
+  const wordCount = previewWords.length ? previewWords.length : rangeWords.length;
 
-  el.setupDatasetChip.textContent = dataset.meta.name;
-  el.setupRangeChip.textContent = `Range ${rangeLabel}`;
-  el.setupSummaryText.textContent = `${setupCopy}. Setup → Quiz → Score.`;
-  el.rangeHint.textContent = `Available range: ${dataset.words[0]?.sectionNumber ?? 1} - ${dataset.words[dataset.words.length - 1]?.sectionNumber ?? dataset.words.length} / Current selection: ${selectedWords.length} words`;
+  el.systemWordCount.textContent = `${wordCount} words`;
+  el.systemDatasetName.textContent = displayDatasetName(dataset.meta);
+  el.systemRangePreview.textContent = formatRangeLabel(dataset);
+  el.datasetStatusText.textContent = state.store.customDataset?.words?.length
+    ? `Loaded: ${displayDatasetName(dataset.meta)} / ${dataset.words.length} words`
+    : "Built-in data: system.xlsx";
+}
+
+function renderDetails() {
+  const dataset = getActiveDataset();
+  const rangeWords = getWordsInRange(dataset.words);
+  const selectedWords = getCandidatesForFocus(rangeWords);
+  const count = selectedWords.length ? selectedWords.length : rangeWords.length;
+
+  el.detailsSelectionCount.textContent = `${count}`;
+  el.detailsRangeHint.textContent = formatRangeLabel(dataset);
+  el.detailsModeText.textContent = MODE_LABELS[state.store.settings.mode];
+  el.detailsDirectionText.textContent = DIRECTION_LABELS[state.store.settings.direction];
+  el.detailsFocusText.textContent = FOCUS_LABELS[state.store.settings.focus];
+  el.detailsTransitionText.textContent = TRANSITION_LABELS[getAutoAdvanceMode()];
+}
+
+function renderStudy() {
+  renderQuestion();
+  renderStudyCorner();
 }
 
 function renderQuestion() {
   const question = state.currentQuestion;
-  const dataset = getActiveDataset();
 
   if (!question) {
-    el.questionBadge.textContent = "Ready";
-    el.promptText.textContent = "セッションを開始すると問題が表示されます。";
-    el.directionChip.textContent = DIRECTION_LABELS[state.store.settings.direction];
-    el.modeChip.textContent = MODE_LABELS[state.store.settings.mode];
-    el.wordIdChip.textContent = dataset.meta.name;
+    el.questionBadge.textContent = state.session.completed ? "Complete" : "Ready";
+    el.promptText.textContent = state.session.completed
+      ? "Session complete. Open Step 4 for the score."
+      : "Set your session and press Start.";
     el.favoriteButton.textContent = "☆";
-    el.answerArea.replaceChildren(makeEmptyState("左の設定を選んでから、セッション開始を押してください。"));
-    el.feedbackBox.classList.remove("is-next-ready");
+    el.favoriteButton.disabled = true;
+    el.answerArea.replaceChildren(makeEmptyState("The active question appears here."));
+    el.feedbackBox.classList.remove("is-correct", "is-wrong", "is-next-ready");
+    el.feedbackBox.textContent = state.session.active ? "Next question will appear here." : "No active session.";
     el.revealButton.disabled = true;
     el.speakButton.disabled = true;
-    if (state.studyScreen === "setup") {
-      setFeedback("左の設定を選んでから、セッション開始を押してください。");
-    }
+    el.nextQuestionButton.textContent = state.session.active ? "Next" : "Start";
     return;
   }
 
   el.questionBadge.textContent = `Q${state.session.answered + 1}`;
   el.promptText.textContent = question.mode === "card" ? "Word Card" : question.prompt;
-  el.directionChip.textContent = DIRECTION_LABELS[question.direction];
-  el.modeChip.textContent = MODE_LABELS[question.mode];
-  el.wordIdChip.textContent = `${question.datasetName} / No.${question.word.id}`;
   el.favoriteButton.textContent = state.store.progress.favorites[question.word.uid] ? "★" : "☆";
+  el.favoriteButton.disabled = false;
+  el.answerArea.replaceChildren();
   el.feedbackBox.classList.toggle("is-next-ready", question.answered && !state.session.completed);
   el.revealButton.disabled = false;
   el.speakButton.disabled = false;
-  el.answerArea.replaceChildren();
+  el.nextQuestionButton.textContent = state.session.completed ? "Restart" : "Next";
 
   if (question.mode === "multiple") {
     renderMultipleChoice(question);
+    el.revealButton.textContent = "Reveal";
   } else if (question.mode === "input") {
     renderInputMode(question);
+    el.revealButton.textContent = "Reveal";
   } else if (question.mode === "card") {
     renderWordCardMode(question);
+    el.revealButton.textContent = question.revealed ? "Flip Back" : "Flip Card";
   } else {
     renderFlashcardMode(question);
+    el.revealButton.textContent = question.revealed ? "Hide" : "Reveal";
   }
+}
 
-  if (question.mode === "card") {
-    el.revealButton.textContent = question.revealed ? "Flip Back" : "Flip Card";
-  } else if (question.mode === "flashcard") {
-    el.revealButton.textContent = question.revealed ? "答えを隠す" : "答えを見る";
-  } else {
-    el.revealButton.textContent = "答えを見る";
-  }
-  el.nextQuestionButton.textContent = state.session.completed ? "新しいセッション" : "次の問題";
+function renderStudyCorner() {
+  const activeDataset = getActiveDataset();
+  const datasetWords = getWordsInRange(activeDataset.words);
+  const settings = state.session.settings || snapshotSettings(activeDataset, datasetWords);
+  const wordId = state.currentQuestion ? `No.${state.currentQuestion.word.id}` : "No.-";
+  const accuracy = state.session.answered ? formatPercent(state.session.correct / state.session.answered) : "-";
+  const progress = state.session.limit > 0 ? `${state.session.answered} / ${state.session.limit}` : `${state.session.answered} / -`;
+
+  el.studyProgressText.textContent = progress;
+  el.studyAccuracyText.textContent = accuracy;
+  el.studyStreakText.textContent = String(state.session.streak);
+  el.studyStatusCorner.replaceChildren();
+
+  [
+    MODE_LABELS[settings.mode] || MODE_LABELS[DEFAULT_SETTINGS.mode],
+    DIRECTION_LABELS[settings.direction] || DIRECTION_LABELS[DEFAULT_SETTINGS.direction],
+    `${settings.datasetName || "Default Set"} / ${settings.rangeLabel || formatRangeLabel()}`,
+    wordId,
+  ].forEach((text) => {
+    const line = document.createElement("span");
+    line.className = "corner-meta";
+    line.textContent = text;
+    el.studyStatusCorner.append(line);
+  });
 }
 
 function renderMultipleChoice(question) {
@@ -820,19 +1332,13 @@ function renderInputMode(question) {
   const block = document.createElement("div");
   block.className = "input-block";
 
-  const hint = document.createElement("p");
-  hint.textContent = question.direction === "en-to-ja"
-    ? "日本語で入力してください。複数の言い換えのうち一つが合っていれば正解です。"
-    : "英語で入力してください。大文字小文字は区別しません。";
-  block.append(hint);
-
   const row = document.createElement("div");
   row.className = "input-row";
 
   const input = document.createElement("input");
   input.className = "answer-input";
   input.type = "text";
-  input.placeholder = "ここに答えを入力";
+  input.placeholder = "Type your answer";
   input.autocomplete = "off";
   input.spellcheck = false;
   input.disabled = question.answered;
@@ -840,7 +1346,7 @@ function renderInputMode(question) {
   const submit = document.createElement("button");
   submit.type = "button";
   submit.className = "primary-button";
-  submit.textContent = question.answered ? "採点済み" : "採点";
+  submit.textContent = question.answered ? "Answered" : "Submit";
   submit.disabled = question.answered;
 
   submit.addEventListener("click", () => submitTypedAnswer(input.value));
@@ -865,12 +1371,6 @@ function renderFlashcardMode(question) {
   const block = document.createElement("div");
   block.className = "flash-block";
 
-  const lead = document.createElement("p");
-  lead.textContent = question.revealed
-    ? "答えを確認できたら、自分の感触で自己採点できます。"
-    : "答えを見るボタンで裏面を開いてください。";
-  block.append(lead);
-
   const answer = document.createElement("div");
   answer.className = `flash-answer${question.revealed ? " is-visible" : ""}`;
   answer.textContent = `${question.word.english}\n${question.word.japanese}`;
@@ -883,18 +1383,18 @@ function renderFlashcardMode(question) {
     const known = document.createElement("button");
     known.type = "button";
     known.className = "primary-button";
-    known.textContent = "覚えていた";
+    known.textContent = "Known";
     known.disabled = question.answered;
     known.addEventListener("click", () => submitFlashcardResult(true));
 
-    const unsure = document.createElement("button");
-    unsure.type = "button";
-    unsure.className = "secondary-button";
-    unsure.textContent = "まだあやしい";
-    unsure.disabled = question.answered;
-    unsure.addEventListener("click", () => submitFlashcardResult(false));
+    const again = document.createElement("button");
+    again.type = "button";
+    again.className = "secondary-button";
+    again.textContent = "Again";
+    again.disabled = question.answered;
+    again.addEventListener("click", () => submitFlashcardResult(false));
 
-    row.append(known, unsure);
+    row.append(known, again);
     block.append(row);
   }
 
@@ -902,12 +1402,12 @@ function renderFlashcardMode(question) {
 }
 
 function renderWordCardMode(question) {
-  const block = document.createElement("div");
-  block.className = "card-block";
-
   const faces = question.direction === "ja-to-en"
     ? { front: question.word.japanese, back: question.word.english }
     : { front: question.word.english, back: question.word.japanese };
+
+  const block = document.createElement("div");
+  block.className = "card-block";
 
   const card = document.createElement("button");
   card.type = "button";
@@ -926,19 +1426,29 @@ function renderWordCardMode(question) {
     toggleWordCardReveal();
   });
 
-  const cardInner = document.createElement("span");
-  cardInner.className = "word-card-inner";
+  const inner = document.createElement("span");
+  inner.className = "word-card-inner";
 
   const front = document.createElement("span");
   front.className = "word-card-face word-card-front";
-  front.textContent = faces.front;
+  const frontTag = document.createElement("span");
+  frontTag.className = "word-card-tag";
+  frontTag.textContent = "FRONT";
+  const frontText = document.createElement("strong");
+  frontText.textContent = faces.front;
+  front.append(frontTag, frontText);
 
   const back = document.createElement("span");
   back.className = "word-card-face word-card-back";
-  back.textContent = faces.back;
+  const backTag = document.createElement("span");
+  backTag.className = "word-card-tag";
+  backTag.textContent = "BACK";
+  const backText = document.createElement("strong");
+  backText.textContent = faces.back;
+  back.append(backTag, backText);
 
-  cardInner.append(front, back);
-  card.append(cardInner);
+  inner.append(front, back);
+  card.append(inner);
   block.append(card);
 
   const row = document.createElement("div");
@@ -947,18 +1457,18 @@ function renderWordCardMode(question) {
   const known = document.createElement("button");
   known.type = "button";
   known.className = "primary-button";
-  known.textContent = "覚えていた";
+  known.textContent = "Known";
   known.disabled = question.answered;
   known.addEventListener("click", () => submitFlashcardResult(true));
 
-  const unsure = document.createElement("button");
-  unsure.type = "button";
-  unsure.className = "secondary-button";
-  unsure.textContent = "まだあやしい";
-  unsure.disabled = question.answered;
-  unsure.addEventListener("click", () => submitFlashcardResult(false));
+  const again = document.createElement("button");
+  again.type = "button";
+  again.className = "secondary-button";
+  again.textContent = "Again";
+  again.disabled = question.answered;
+  again.addEventListener("click", () => submitFlashcardResult(false));
 
-  row.append(known, unsure);
+  row.append(known, again);
   block.append(row);
 
   el.answerArea.append(block);
@@ -1013,458 +1523,294 @@ function handleWordCardSwipe() {
   advanceQuestionFromGesture();
 }
 
-function renderSession() {
-  const dataset = getActiveDataset();
-  const rangeLabel = formatRangeLabel(dataset);
-  const limit = state.session.limit;
-  const progressLabel = limit > 0 ? `${state.session.answered} / ${limit}` : `${state.session.answered} / ∞`;
-  const accuracy = state.session.answered ? state.session.correct / state.session.answered : 0;
-  const modeLabel = `${MODE_LABELS[state.store.settings.mode]} / ${DIRECTION_LABELS[state.store.settings.direction]}`;
-  el.sessionProgress.textContent = progressLabel;
-  el.sessionAccuracy.textContent = state.session.answered ? formatPercent(accuracy) : "-";
-  el.sessionStreak.textContent = String(state.session.streak);
-  el.sessionModeBadge.textContent = state.session.active ? modeLabel : "Idle";
-
-  el.quizProgress.textContent = progressLabel;
-  el.quizAccuracy.textContent = state.session.answered ? formatPercent(accuracy) : "-";
-  el.quizStreak.textContent = String(state.session.streak);
-  el.quizStatusBadge.textContent = state.session.active ? "In progress" : "Idle";
-
-  const metaItems = [
-    `Mode: ${MODE_LABELS[state.store.settings.mode]}`,
-    `Direction: ${DIRECTION_LABELS[state.store.settings.direction]}`,
-    `Focus: ${getFocusLabel(state.store.settings.focus)}`,
-    `Range: ${rangeLabel}`,
-    `Dataset: ${dataset.meta.name}`,
-  ];
-  el.quizMetaList.replaceChildren();
-  metaItems.forEach((text) => {
-    const item = document.createElement("li");
-    item.textContent = text;
-    el.quizMetaList.append(item);
-  });
-}
-
-function renderScore() {
-  const summary = state.lastSessionSummary;
-  const dataset = getActiveDataset();
-  const rangeLabel = formatRangeLabel(dataset);
-
+function renderResults() {
+  const summary = getDisplayedSessionSummary();
   if (!summary) {
-    el.scoreDatasetChip.textContent = dataset.meta.name;
-    el.scoreRangeChip.textContent = `Range ${rangeLabel}`;
-    el.scoreSummaryText.textContent = "Session results appear here after you finish.";
-    el.scoreCorrectCount.textContent = "0";
-    el.scoreAnsweredCount.textContent = "0問中 0問";
-    el.scoreAccuracyValue.textContent = "0%";
-    el.scoreBestStreak.textContent = "0";
-    el.scoreMistakeBadge.textContent = "0件";
-    renderWordList(el.scoreMistakeList, [], () => ({ title: "", detail: "" }));
-    renderWordList(el.scoreNoteList, [], () => ({ title: "", detail: "" }));
+    el.resultDatasetChip.textContent = displayDatasetName(getActiveDataset().meta);
+    el.resultRangeChip.textContent = formatRangeLabel();
+    el.resultSummaryText.textContent = "Finish a session to see the score.";
+    el.resultCorrectCount.textContent = "0";
+    el.resultAnsweredCount.textContent = "0 answered";
+    el.resultAccuracyValue.textContent = "0%";
+    el.resultBestStreak.textContent = "0";
+    el.resultDuration.textContent = "0m";
+    el.resultHistoryCount.textContent = "0";
+    renderResultHistoryList([]);
     return;
   }
 
-  el.scoreDatasetChip.textContent = summary.datasetName;
-  el.scoreRangeChip.textContent = `Range ${summary.rangeLabel}`;
-  el.scoreSummaryText.textContent = `${summary.correct} correct out of ${summary.answered}. Review missed words and go again.`;
-  el.scoreCorrectCount.textContent = String(summary.correct);
-  el.scoreAnsweredCount.textContent = `${summary.answered}問中 ${summary.correct}問`;
-  el.scoreAccuracyValue.textContent = formatPercent(summary.accuracy);
-  el.scoreBestStreak.textContent = String(summary.bestStreak);
-  el.scoreMistakeBadge.textContent = `${summary.mistakes.length}件`;
-
-  renderWordList(el.scoreMistakeList, summary.mistakes, (attempt) => ({
-    title: `${attempt.english} / ${attempt.japanese}`,
-    detail: `回答: ${attempt.userAnswer || "未入力"} / 正解: ${attempt.expectedAnswer}`,
-  }));
-
-  const notes = buildScoreNotes(summary);
-  renderWordList(el.scoreNoteList, notes, (note) => note);
+  el.resultDatasetChip.textContent = summary.datasetName;
+  el.resultRangeChip.textContent = summary.rangeLabel;
+  el.resultSummaryText.textContent = `${summary.correct} / ${summary.answered} correct`;
+  el.resultCorrectCount.textContent = String(summary.correct);
+  el.resultAnsweredCount.textContent = `${summary.answered} answered`;
+  el.resultAccuracyValue.textContent = formatPercent(summary.accuracy);
+  el.resultBestStreak.textContent = String(summary.bestStreak);
+  el.resultDuration.textContent = formatDuration(summary.durationMs);
+  el.resultHistoryCount.textContent = `${summary.attempts.length}`;
+  renderResultHistoryList(summary.attempts);
 }
 
-function renderQuickAnalytics() {
-  if (!el.dashboardWeakWords || !el.confusionList) {
+function renderResultHistoryList(attempts) {
+  el.resultHistoryList.replaceChildren();
+  if (!attempts.length) {
+    el.resultHistoryList.append(makeEmptyState("No session history yet.", "li"));
     return;
   }
-  const analytics = computeAnalytics();
-  state.latestAnalytics = analytics;
-}
 
-function buildScoreNotes(summary) {
-  const notes = [];
-  if (summary.accuracy >= 0.85) {
-    notes.push({ title: "Strong result", detail: "Try Input or Japanese → English next for a tougher round." });
-  } else if (summary.accuracy >= 0.6) {
-    notes.push({ title: "Almost there", detail: "Running the same range one more time should help it stick." });
-  } else {
-    notes.push({ title: "Review mode", detail: "Mark missed words as favorites and run them again." });
-  }
+  attempts.forEach((attempt, index) => {
+    const item = document.createElement("li");
+    item.className = `result-history-item${attempt.correct ? " is-correct" : " is-wrong"}`;
 
-  notes.push({
-    title: "Suggested next setup",
-    detail: `${MODE_LABELS[state.store.settings.mode]} / ${DIRECTION_LABELS[state.store.settings.direction]} / Range ${summary.rangeLabel}`,
+    const top = document.createElement("div");
+    top.className = "result-history-top";
+
+    const order = document.createElement("span");
+    order.className = "result-order";
+    order.textContent = `#${index + 1}`;
+
+    const badge = document.createElement("span");
+    badge.className = "result-badge";
+    badge.textContent = attempt.correct ? "OK" : "MISS";
+
+    top.append(order, badge);
+
+    const english = document.createElement("strong");
+    english.textContent = attempt.english;
+
+    const japanese = document.createElement("span");
+    japanese.className = "result-meaning";
+    japanese.textContent = attempt.japanese;
+
+    item.append(top, english, japanese);
+
+    if (!attempt.correct && shouldShowAttemptDetail(attempt)) {
+      const detail = document.createElement("span");
+      detail.className = "result-detail";
+      detail.textContent = `Your: ${attempt.userAnswer || "-"} / Answer: ${attempt.expectedAnswer}`;
+      item.append(detail);
+    }
+
+    el.resultHistoryList.append(item);
   });
+}
 
-  if (summary.mistakes.length) {
-    notes.push({
-      title: "Start here",
-      detail: `${summary.mistakes[0].english} looks like the best word to review first.`,
-    });
-  }
-
-  return notes;
+function shouldShowAttemptDetail(attempt) {
+  return attempt.mode === "input" || attempt.mode === "multiple";
 }
 
 function renderDashboard() {
   const analytics = computeAnalytics();
-  el.metricAttempts.textContent = String(analytics.totalAttempts);
-  el.metricAccuracy.textContent = formatPercent(analytics.accuracy);
-  el.metricBestStreak.textContent = String(state.store.progress.bestStreak || 0);
-  el.metricWeakCount.textContent = String(analytics.weakWords.length);
+  state.latestAnalytics = analytics;
 
-  renderBreakdown(el.modeBreakdown, analytics.modeBreakdown, MODE_LABELS);
-  renderBreakdown(el.directionBreakdown, analytics.directionBreakdown, DIRECTION_LABELS);
-  renderWordList(el.dashboardWeakWords, analytics.weakWords.slice(0, 10), (entry) => {
-    const accuracy = entry.stats.asked ? entry.stats.correct / entry.stats.asked : 0;
-    return {
-      title: entry.word.english,
-      detail: `${entry.word.japanese} / ${entry.stats.incorrect}ミス / 正答率 ${formatPercent(accuracy)}`,
-    };
-  });
-  renderWordList(el.confusionList, analytics.confusions.slice(0, 10), (entry) => ({
-    title: `${entry.source.english} と ${entry.target.english}`,
-    detail: `${entry.count}回混同`,
-  }));
+  el.metricStudyTime.textContent = formatDuration(analytics.studyTimeMs);
+  el.metricAttempts.textContent = String(analytics.totalAttempts);
+  el.metricBestStreak.textContent = String(state.store.progress.bestStreak || 0);
+  el.weakCandidateCount.textContent = String(analytics.weakWords.length);
+
+  renderCalendar(analytics.calendarDays);
+  renderWeakPreview(analytics.weakWords.slice(0, 4));
 }
 
-function renderHistory() {
-  const filter = el.historyFilterSelect.value;
-  const attempts = state.store.progress.attempts.filter((attempt) => {
-    if (filter === "correct") {
-      return attempt.correct;
-    }
-    if (filter === "incorrect") {
-      return !attempt.correct;
-    }
-    return true;
-  });
-
-  el.historyList.replaceChildren();
-  if (!attempts.length) {
-    el.historyList.append(makeEmptyState("まだ履歴がありません。", "li"));
+function renderCalendar(days) {
+  el.dashboardCalendar.replaceChildren();
+  if (!days.length) {
+    el.dashboardCalendar.append(makeEmptyState("No study data."));
     return;
   }
 
-  attempts.forEach((attempt) => {
-    const item = document.createElement("li");
-    item.className = `history-item ${attempt.correct ? "correct" : "incorrect"}`;
+  days.forEach((day) => {
+    const cell = document.createElement("div");
+    cell.className = `calendar-cell level-${day.level}${day.isToday ? " is-today" : ""}`;
+    cell.title = `${day.label}: ${day.attempts} answers / ${formatDuration(day.studyTimeMs)}`;
 
-    const topline = document.createElement("div");
-    topline.className = "history-item-topline";
-    const word = document.createElement("strong");
-    word.textContent = `${attempt.english} / ${attempt.japanese}`;
-    const time = document.createElement("time");
-    time.textContent = dateFormatter.format(attempt.at);
-    topline.append(word, time);
+    const label = document.createElement("span");
+    label.className = "calendar-label";
+    label.textContent = String(day.day);
+
+    const bar = document.createElement("span");
+    bar.className = "calendar-bar";
+
+    cell.append(label, bar);
+    el.dashboardCalendar.append(cell);
+  });
+}
+
+function renderWeakPreview(items) {
+  el.weakCandidatePreview.replaceChildren();
+  if (!items.length) {
+    const item = document.createElement("li");
+    item.className = "preview-chip empty-chip";
+    item.textContent = "No weak words";
+    el.weakCandidatePreview.append(item);
+    return;
+  }
+
+  items.forEach((entry) => {
+    const item = document.createElement("li");
+    item.className = "preview-chip";
+    item.textContent = entry.word.english;
+    el.weakCandidatePreview.append(item);
+  });
+}
+
+function renderWeakWords() {
+  const analytics = state.latestAnalytics || computeAnalytics();
+  const items = analytics.weakWords;
+  el.weakWordsDetailList.replaceChildren();
+
+  if (!items.length) {
+    el.weakWordsDetailList.append(makeEmptyState("No weak words yet.", "li"));
+    return;
+  }
+
+  items.forEach((entry) => {
+    const row = document.createElement("li");
+
+    const top = document.createElement("div");
+    top.className = "list-topline";
+
+    const title = document.createElement("strong");
+    title.textContent = entry.word.english;
+
+    const badge = document.createElement("span");
+    badge.className = "status-pill";
+    badge.textContent = formatPercent(entry.stats.asked ? entry.stats.correct / entry.stats.asked : 0);
+
+    top.append(title, badge);
+
+    const meaning = document.createElement("span");
+    meaning.textContent = entry.word.japanese;
+
+    const meta = document.createElement("span");
+    meta.className = "list-meta";
+    meta.textContent = `${entry.stats.incorrect} miss / ${entry.stats.asked} asked`;
+
+    row.append(top, meaning, meta);
+    el.weakWordsDetailList.append(row);
+  });
+}
+
+function renderWordBank() {
+  const dataset = getActiveDataset();
+  el.wordBankList.replaceChildren();
+
+  if (!dataset.words.length) {
+    el.wordBankList.append(makeEmptyState("No words found.", "li"));
+    return;
+  }
+
+  dataset.words.forEach((word) => {
+    const row = document.createElement("li");
+    row.className = "word-bank-item";
+
+    const index = document.createElement("span");
+    index.className = "word-bank-index";
+    index.textContent = `No.${word.id}`;
+
+    const copy = document.createElement("div");
+    copy.className = "word-bank-copy";
+
+    const english = document.createElement("strong");
+    english.textContent = word.english;
+
+    const japanese = document.createElement("span");
+    japanese.textContent = word.japanese;
+
+    copy.append(english, japanese);
 
     const meta = document.createElement("div");
-    meta.className = "history-item-meta";
-    meta.textContent = `${MODE_LABELS[attempt.mode]} / ${DIRECTION_LABELS[attempt.direction]} / ${attempt.correct ? "正解" : "不正解"}`;
+    meta.className = "word-bank-meta";
 
-    const detail = document.createElement("div");
-    detail.textContent = `回答: ${attempt.userAnswer || "未入力"} / 正解: ${attempt.expectedAnswer}`;
-
-    item.append(topline, meta, detail);
-    el.historyList.append(item);
-  });
-}
-
-function renderSettings() {
-  populateDatasetSelect();
-  const activeDataset = getActiveDataset();
-  el.datasetStatusText.textContent = state.store.customDataset?.words?.length
-    ? `現在のデータセット: ${activeDataset.meta.name} (${activeDataset.words.length}語)`
-    : "既定データとして system.xlsx 由来の単語帳を読み込んでいます。";
-  el.backgroundHint.textContent = state.store.settings.customBackground || state.temporaryBackground
-    ? "背景画像を適用中です。テーマ変更と組み合わせて使えます。"
-    : "テーマだけでも使えます。画像が大きい場合は保存せず、その場だけで適用します。";
-}
-
-function submitMultipleChoice(selectedUid, label) {
-  const question = state.currentQuestion;
-  if (!question || question.answered) {
-    return;
-  }
-
-  const correct = selectedUid === question.word.uid;
-  question.answered = true;
-  question.correct = correct;
-  question.selectedChoiceUid = selectedUid;
-
-  recordAttempt({
-    correct,
-    direction: question.direction,
-    mode: question.mode,
-    question,
-    selectedChoiceUid: selectedUid,
-    userAnswer: label,
-  });
-
-  setFeedback(
-    `${correct
-      ? `正解です。\n${question.word.english} = ${question.word.japanese}`
-      : `不正解です。\n正解: ${question.word.english} = ${question.word.japanese}`}${getSessionCompletionSuffix()}`,
-    correct ? "correct" : "wrong"
-  );
-  handlePostAnswer(correct);
-}
-
-function submitTypedAnswer(value) {
-  const question = state.currentQuestion;
-  if (!question || question.answered) {
-    return;
-  }
-
-  const result = evaluateTypedAnswer(value, question.word, question.direction);
-  question.answered = true;
-  question.correct = result.correct;
-
-  recordAttempt({
-    correct: result.correct,
-    direction: question.direction,
-    mode: question.mode,
-    question,
-    userAnswer: value.trim(),
-  });
-
-  setFeedback(
-    `${result.correct
-      ? `正解です。\n${question.word.english} = ${question.word.japanese}`
-      : `不正解です。\n正解候補: ${result.accepted.join(" / ") || formatExpectedAnswer(question.word, question.direction)}`}${getSessionCompletionSuffix()}`,
-    result.correct ? "correct" : "wrong"
-  );
-  handlePostAnswer(result.correct);
-}
-
-function submitFlashcardResult(correct) {
-  const question = state.currentQuestion;
-  if (!question || question.answered || !question.revealed) {
-    return;
-  }
-
-  question.answered = true;
-  question.correct = correct;
-
-  recordAttempt({
-    correct,
-    direction: question.direction,
-    mode: question.mode,
-    question,
-    userAnswer: correct ? "覚えていた" : "まだあやしい",
-  });
-
-  setFeedback(
-    `${correct
-      ? "感触を記録しました。\nこの単語は覚えていたことにします。"
-      : "感触を記録しました。\nこの単語は苦手候補として重み付けされます。"}${getSessionCompletionSuffix()}`,
-    correct ? "correct" : "wrong"
-  );
-  handlePostAnswer(correct);
-}
-
-function revealCurrentAnswer() {
-  const question = state.currentQuestion;
-  if (!question) {
-    return;
-  }
-
-  if (question.mode === "card") {
-    toggleWordCardReveal();
-    return;
-  }
-
-  if (question.mode === "flashcard") {
-    question.revealed = !question.revealed;
-    renderQuestion();
-    if (question.revealed) {
-      setFeedback("裏面を表示しました。覚えていたかどうかを下のボタンで残せます。");
-    } else {
-      setFeedback("表面に戻しました。");
+    if (state.store.progress.favorites[word.uid]) {
+      const star = document.createElement("span");
+      star.className = "status-pill";
+      star.textContent = "★";
+      meta.append(star);
     }
-    return;
-  }
 
-  setFeedback(`答え: ${question.word.english} = ${question.word.japanese}`);
-}
-
-function recordAttempt({ correct, direction, mode, question, userAnswer, selectedChoiceUid = "" }) {
-  const at = Date.now();
-  const expectedAnswer = formatExpectedAnswer(question.word, direction);
-  const attempt = {
-    uid: question.word.uid,
-    datasetId: state.store.settings.activeDataset,
-    wordId: question.word.id,
-    english: question.word.english,
-    japanese: question.word.japanese,
-    direction,
-    mode,
-    correct,
-    userAnswer,
-    expectedAnswer,
-    selectedChoiceUid,
-    at,
-  };
-
-  state.store.progress.attempts.unshift(attempt);
-  state.store.progress.attempts = state.store.progress.attempts.slice(0, HISTORY_LIMIT);
-
-  const stat = state.store.progress.wordStats[question.word.uid] || createWordStat();
-  stat.asked += 1;
-  stat.correct += correct ? 1 : 0;
-  stat.incorrect += correct ? 0 : 1;
-  stat.lastSeenAt = at;
-
-  stat.byDirection[direction] = stat.byDirection[direction] || { asked: 0, correct: 0, incorrect: 0 };
-  stat.byDirection[direction].asked += 1;
-  stat.byDirection[direction].correct += correct ? 1 : 0;
-  stat.byDirection[direction].incorrect += correct ? 0 : 1;
-
-  stat.byMode[mode] = stat.byMode[mode] || { asked: 0, correct: 0, incorrect: 0 };
-  stat.byMode[mode].asked += 1;
-  stat.byMode[mode].correct += correct ? 1 : 0;
-  stat.byMode[mode].incorrect += correct ? 0 : 1;
-
-  if (!correct && mode === "multiple" && selectedChoiceUid && selectedChoiceUid !== question.word.uid) {
-    stat.confusions[selectedChoiceUid] = (stat.confusions[selectedChoiceUid] || 0) + 1;
-  }
-
-  state.store.progress.wordStats[question.word.uid] = stat;
-  state.session.answered += 1;
-  state.session.correct += correct ? 1 : 0;
-  state.session.streak = correct ? state.session.streak + 1 : 0;
-  state.session.bestStreak = Math.max(state.session.bestStreak, state.session.streak);
-  state.session.attempts.unshift(attempt);
-  state.store.progress.bestStreak = Math.max(state.store.progress.bestStreak || 0, state.session.streak);
-
-  if (state.session.limit > 0 && state.session.answered >= state.session.limit) {
-    state.session.completed = true;
-    state.session.active = false;
-    state.lastSessionSummary = summarizeSession();
-    state.studyScreen = "score";
-    state.currentQuestion = null;
-    clearPendingAutoAdvance();
-  }
-
-  saveStore();
-}
-
-function summarizeSession() {
-  const dataset = getActiveDataset();
-  const attempts = [...state.session.attempts];
-  const mistakes = attempts.filter((attempt) => !attempt.correct);
-  return {
-    answered: state.session.answered,
-    correct: state.session.correct,
-    accuracy: state.session.answered ? state.session.correct / state.session.answered : 0,
-    bestStreak: state.session.bestStreak,
-    mistakes,
-    rangeLabel: formatRangeLabel(dataset),
-    datasetName: dataset.meta.name,
-  };
-}
-
-function evaluateTypedAnswer(value, word, direction) {
-  const guess = value.trim();
-  const accepted = direction === "en-to-ja" ? getJapaneseAnswerCandidates(word.japanese) : getEnglishAnswerCandidates(word.english);
-  if (!guess) {
-    return { correct: false, accepted };
-  }
-
-  const normalizedGuess = direction === "en-to-ja" ? normalizeJapanese(guess) : normalizeEnglish(guess);
-  const correct = accepted.some((candidate) => {
-    const normalizedCandidate = direction === "en-to-ja" ? normalizeJapanese(candidate) : normalizeEnglish(candidate);
-    if (normalizedGuess === normalizedCandidate) {
-      return true;
+    const stats = state.store.progress.wordStats[word.uid];
+    if (stats?.incorrect) {
+      const weak = document.createElement("span");
+      weak.className = "status-pill";
+      weak.textContent = `${stats.incorrect} miss`;
+      meta.append(weak);
     }
-    if (direction === "en-to-ja") {
-      return normalizedCandidate.includes(normalizedGuess) || normalizedGuess.includes(normalizedCandidate);
-    }
-    return false;
+
+    row.append(index, copy, meta);
+    el.wordBankList.append(row);
   });
-
-  return { correct, accepted };
-}
-
-function getEnglishAnswerCandidates(text) {
-  const base = text.replace(/[()]/g, " ");
-  const segments = [base, ...base.split(/[;,/]/g)];
-  return [...new Set(segments.map((segment) => segment.trim()).filter(Boolean))];
-}
-
-function getJapaneseAnswerCandidates(text) {
-  const base = text
-    .replace(/[（(][^）)]*[）)]/g, "")
-    .replace(/・/g, " ")
-    .trim();
-  const segments = [base, ...base.split(/[、,;；/]/g)];
-  return [...new Set(segments.map((segment) => segment.trim().replace(/^～/, "")).filter(Boolean))];
-}
-
-function normalizeEnglish(text) {
-  return text
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[“”"'`]/g, "")
-    .replace(/[._!?]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeJapanese(text) {
-  return text
-    .normalize("NFKC")
-    .replace(/[~〜～]/g, "")
-    .replace(/[「」『』【】\[\]()（）]/g, "")
-    .replace(/[　\s]/g, "")
-    .replace(/[。．、,・]/g, "")
-    .trim();
-}
-
-function normalizeBasic(text) {
-  return text.normalize("NFKC").replace(/[　\s]/g, "").trim();
-}
-
-function formatExpectedAnswer(word, direction) {
-  return direction === "en-to-ja" ? word.japanese : word.english;
 }
 
 function computeAnalytics() {
-  const attempts = state.store.progress.attempts;
-  const totalAttempts = attempts.length;
-  const totalCorrect = attempts.filter((attempt) => attempt.correct).length;
   return {
-    totalAttempts,
-    accuracy: totalAttempts ? totalCorrect / totalAttempts : 0,
-    weakWords: getWeakWords(20),
-    confusions: getConfusionPairs(20),
-    modeBreakdown: aggregateAttemptsBy(attempts, "mode"),
-    directionBreakdown: aggregateAttemptsBy(attempts, "direction"),
+    totalAttempts: state.store.progress.attempts.length,
+    studyTimeMs: Number(state.store.progress.studyTimeMs || 0),
+    weakWords: getWeakWords(50),
+    calendarDays: buildCalendarDays(CALENDAR_DAY_COUNT),
   };
 }
 
-function aggregateAttemptsBy(attempts, key) {
-  const stats = new Map();
-  for (const attempt of attempts) {
-    const current = stats.get(attempt[key]) || { asked: 0, correct: 0 };
-    current.asked += 1;
-    current.correct += attempt.correct ? 1 : 0;
-    stats.set(attempt[key], current);
+function buildCalendarDays(dayCount) {
+  const attemptsByDay = new Map();
+  const studyTimeByDay = new Map();
+
+  state.store.progress.attempts.forEach((attempt) => {
+    const key = getDayKey(attempt.at);
+    attemptsByDay.set(key, (attemptsByDay.get(key) || 0) + 1);
+  });
+
+  state.store.progress.sessions.forEach((session) => {
+    const key = getDayKey(session.completedAt || session.startedAt);
+    studyTimeByDay.set(key, (studyTimeByDay.get(key) || 0) + Number(session.durationMs || 0));
+  });
+
+  const days = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let offset = dayCount - 1; offset >= 0; offset -= 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    const key = getDayKey(day.getTime());
+    const attempts = attemptsByDay.get(key) || 0;
+    const studyTimeMs = studyTimeByDay.get(key) || 0;
+    days.push({
+      key,
+      day: day.getDate(),
+      label: `${day.getMonth() + 1}/${day.getDate()}`,
+      attempts,
+      studyTimeMs,
+      level: getCalendarLevel(attempts),
+      isToday: offset === 0,
+    });
   }
-  return [...stats.entries()].map(([name, value]) => ({
-    name,
-    asked: value.asked,
-    accuracy: value.asked ? value.correct / value.asked : 0,
-  }));
+
+  return days;
+}
+
+function getCalendarLevel(attempts) {
+  if (!attempts) {
+    return 0;
+  }
+  if (attempts < 10) {
+    return 1;
+  }
+  if (attempts < 25) {
+    return 2;
+  }
+  if (attempts < 45) {
+    return 3;
+  }
+  return 4;
+}
+
+function getDayKey(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getWeakWords(limit) {
@@ -1483,172 +1829,11 @@ function getWeakWords(limit) {
     .slice(0, limit);
 }
 
-function getConfusionPairs(limit) {
-  const lookup = getWordLookup();
-  const pairs = [];
-  for (const [uid, stats] of Object.entries(state.store.progress.wordStats)) {
-    for (const [targetUid, count] of Object.entries(stats.confusions || {})) {
-      const source = lookup.get(uid);
-      const target = lookup.get(targetUid);
-      if (!source || !target || !count) {
-        continue;
-      }
-      pairs.push({ source, target, count });
-    }
-  }
-  return pairs.sort((left, right) => right.count - left.count).slice(0, limit);
-}
-
-function renderBreakdown(container, items, labels) {
-  container.replaceChildren();
-  if (!items.length) {
-    container.append(makeEmptyState("まだ分析できるデータがありません。"));
-    return;
-  }
-
-  items.forEach((item) => {
-    const block = document.createElement("div");
-    block.className = "breakdown-item";
-
-    const topline = document.createElement("div");
-    topline.className = "breakdown-topline";
-    const label = document.createElement("strong");
-    label.textContent = labels[item.name] || item.name;
-    const value = document.createElement("span");
-    value.textContent = formatPercent(item.accuracy);
-    topline.append(label, value);
-
-    const meter = document.createElement("div");
-    meter.className = "meter";
-    const fill = document.createElement("span");
-    fill.style.setProperty("--ratio", String(item.accuracy * 100));
-    meter.append(fill);
-
-    const note = document.createElement("div");
-    note.textContent = `${item.asked}問`;
-
-    block.append(topline, meter, note);
-    container.append(block);
-  });
-}
-
-function renderWordList(container, items, mapItem) {
-  container.replaceChildren();
-  if (!items.length) {
-    container.append(makeEmptyState("まだデータがありません。", "li"));
-    return;
-  }
-
-  items.forEach((item) => {
-    const row = document.createElement("li");
-    const mapped = mapItem(item);
-    const title = document.createElement("strong");
-    title.textContent = mapped.title;
-    const detail = document.createElement("span");
-    detail.textContent = mapped.detail;
-    row.append(title, detail);
-    container.append(row);
-  });
-}
-
-function renderAttemptList(container, attempts, compact = false) {
-  container.replaceChildren();
-  if (!attempts.length) {
-    container.append(makeEmptyState("まだ履歴がありません。", "li"));
-    return;
-  }
-
-  attempts.forEach((attempt) => {
-    const row = document.createElement("li");
-    const title = document.createElement("strong");
-    title.textContent = `${attempt.correct ? "○" : "×"} ${attempt.english}`;
-    const detail = document.createElement("span");
-    detail.textContent = compact
-      ? `${MODE_LABELS[attempt.mode]} / ${DIRECTION_LABELS[attempt.direction]}`
-      : `${attempt.userAnswer || "未入力"} / ${attempt.expectedAnswer}`;
-    row.append(title, detail);
-    container.append(row);
-  });
-}
-
-function toggleFavoriteForCurrentWord() {
-  const question = state.currentQuestion;
-  if (!question) {
-    return;
-  }
-  const favorites = state.store.progress.favorites;
-  favorites[question.word.uid] = !favorites[question.word.uid];
-  if (!favorites[question.word.uid]) {
-    delete favorites[question.word.uid];
-  }
-  saveStore();
-  renderQuestion();
-}
-
-function bindExtendedEvents() {
-  el.csvFileInput.addEventListener("change", async () => {
-    const file = el.csvFileInput.files?.[0];
-    if (!file) {
-      return;
-    }
-    await importCsvFile(file);
-    el.csvFileInput.value = "";
-  });
-
-  el.backgroundFileInput.addEventListener("change", async () => {
-    const file = el.backgroundFileInput.files?.[0];
-    if (!file) {
-      return;
-    }
-    await applyBackgroundFromFile(file);
-    el.backgroundFileInput.value = "";
-  });
-
-  el.clearBackgroundButton.addEventListener("click", clearBackgroundImage);
-
-  el.resetProgressButton.addEventListener("click", () => {
-    if (!confirm("学習履歴を消去します。よろしいですか？")) {
-      return;
-    }
-    state.store.progress = structuredClone(DEFAULT_PROGRESS);
-    state.session = createSessionState();
-    state.currentQuestion = null;
-    state.lastSessionSummary = null;
-    state.studyScreen = "setup";
-    saveStore();
-    renderAll();
-  });
-
-  el.resetAllButton.addEventListener("click", () => {
-    if (!confirm("履歴・設定・カスタムCSVをまとめて消去します。よろしいですか？")) {
-      return;
-    }
-    state.store = {
-      settings: { ...DEFAULT_SETTINGS },
-      progress: structuredClone(DEFAULT_PROGRESS),
-      customDataset: null,
-    };
-    state.temporaryBackground = "";
-    syncStore();
-    hydrateControls();
-    applyTheme();
-    state.session = createSessionState();
-    state.currentQuestion = null;
-    state.lastSessionSummary = null;
-    state.studyScreen = "setup";
-    saveStore();
-    renderAll();
-  });
-}
-
-bindExtendedEvents();
-
-async function importCsvFile(file) {
-  try {
-    const text = await file.text();
+function importCsvFile(file) {
+  return file.text().then((text) => {
     const parsedWords = parseWordCsv(text);
     if (!parsedWords.length) {
-      alert("CSV から単語を読み取れませんでした。");
+      alert("No word rows were found in the CSV file.");
       return;
     }
 
@@ -1656,7 +1841,7 @@ async function importCsvFile(file) {
     state.store.customDataset = {
       meta: {
         id: datasetId,
-        name: file.name.replace(/\.[^.]+$/, "") || "カスタムCSV",
+        name: file.name.replace(/\.[^.]+$/, "") || "Custom Set",
         source: file.name,
         count: parsedWords.length,
       },
@@ -1667,15 +1852,18 @@ async function importCsvFile(file) {
       })),
     };
     state.store.settings.activeDataset = datasetId;
-    state.studyScreen = "setup";
+    state.currentQuestion = null;
+    state.session = createSessionState();
     state.lastSessionSummary = null;
+    syncStore();
     saveStore();
+    hydrateControls();
     renderAll();
-    switchView("study");
-  } catch (error) {
+    switchView("system");
+  }).catch((error) => {
     console.error(error);
-    alert("CSV の読み込みに失敗しました。列は 英語 / 日本語 の形になっているか確認してください。");
-  }
+    alert("CSV import failed.");
+  });
 }
 
 function parseWordCsv(text) {
@@ -1686,16 +1874,16 @@ function parseWordCsv(text) {
   }
 
   const header = rows[0].map((cell) => cell.trim().toLowerCase());
-  const hasHeader = header.some((cell) => /(english|英語|japanese|日本語|meaning|意味|word|単語|id|番号)/.test(cell));
+  const hasHeader = header.some((cell) => /(english|japanese|meaning|word|id|number)/.test(cell));
 
   const pickIndex = (patterns, fallback) => {
     const index = header.findIndex((cell) => patterns.some((pattern) => pattern.test(cell)));
     return index >= 0 ? index : fallback;
   };
 
-  const englishIndex = hasHeader ? pickIndex([/english/, /英語/, /word/, /単語/], rows[0].length >= 3 ? 1 : 0) : rows[0].length >= 3 ? 1 : 0;
-  const japaneseIndex = hasHeader ? pickIndex([/japanese/, /日本語/, /meaning/, /意味/], rows[0].length >= 3 ? 2 : 1) : rows[0].length >= 3 ? 2 : 1;
-  const idIndex = hasHeader ? pickIndex([/^id$/, /番号/], -1) : rows[0].length >= 3 ? 0 : -1;
+  const englishIndex = hasHeader ? pickIndex([/english/, /word/], rows[0].length >= 3 ? 1 : 0) : rows[0].length >= 3 ? 1 : 0;
+  const japaneseIndex = hasHeader ? pickIndex([/japanese/, /meaning/], rows[0].length >= 3 ? 2 : 1) : rows[0].length >= 3 ? 2 : 1;
+  const idIndex = hasHeader ? pickIndex([/^id$/, /number/], -1) : rows[0].length >= 3 ? 0 : -1;
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
   return dataRows
@@ -1766,20 +1954,18 @@ function detectDelimiter(text) {
   return counts.sort((left, right) => right.count - left.count)[0].delimiter;
 }
 
-async function applyBackgroundFromFile(file) {
-  const dataUrl = await readFileAsDataUrl(file);
-  state.temporaryBackground = dataUrl;
-
-  if (dataUrl.length <= PERSISTABLE_BACKGROUND_LIMIT) {
-    state.store.settings.customBackground = dataUrl;
+function applyBackgroundFromFile(file) {
+  return readFileAsDataUrl(file).then((dataUrl) => {
+    state.temporaryBackground = dataUrl;
+    if (dataUrl.length <= PERSISTABLE_BACKGROUND_LIMIT) {
+      state.store.settings.customBackground = dataUrl;
+    } else {
+      state.store.settings.customBackground = "";
+    }
     saveStore();
-  } else {
-    state.store.settings.customBackground = "";
-    saveStore();
-  }
-
-  applyTheme();
-  renderSettings();
+    applyTheme();
+    renderAll();
+  });
 }
 
 function clearBackgroundImage() {
@@ -1787,7 +1973,66 @@ function clearBackgroundImage() {
   state.store.settings.customBackground = "";
   saveStore();
   applyTheme();
-  renderSettings();
+  renderAll();
+}
+
+function clearApplicationCache() {
+  if (!("caches" in window)) {
+    setFeedback("Cache API is not available here.", "wrong");
+    return;
+  }
+
+  caches.keys()
+    .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+    .then(async () => {
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.update().catch(() => {})));
+      }
+      setFeedback("Cache cleared.", "correct");
+    })
+    .catch((error) => {
+      console.warn("Failed to clear cache:", error);
+      setFeedback("Cache clear failed.", "wrong");
+    });
+}
+
+function resetProgressOnly() {
+  if (!window.confirm("Clear all saved progress on this device?")) {
+    return;
+  }
+
+  state.store.progress = cloneData(DEFAULT_PROGRESS);
+  state.session = createSessionState();
+  state.currentQuestion = null;
+  state.lastSessionSummary = null;
+  clearPendingAutoAdvance();
+  saveStore();
+  renderAll();
+  switchView("system");
+}
+
+function resetAllLocalData() {
+  if (!window.confirm("Clear settings, progress, custom CSV data, and local background image?")) {
+    return;
+  }
+
+  state.store = {
+    settings: { ...DEFAULT_SETTINGS },
+    progress: cloneData(DEFAULT_PROGRESS),
+    customDataset: null,
+  };
+  state.temporaryBackground = "";
+  state.session = createSessionState();
+  state.currentQuestion = null;
+  state.lastSessionSummary = null;
+  clearPendingAutoAdvance();
+  syncStore();
+  saveStore();
+  hydrateControls();
+  applyTheme();
+  renderAll();
+  switchView("system");
 }
 
 function applyTheme() {
@@ -1797,16 +2042,7 @@ function applyTheme() {
     ? `linear-gradient(135deg, rgba(7, 17, 31, 0.38), rgba(7, 17, 31, 0.68)), url("${backgroundData}") center / cover no-repeat fixed`
     : "none";
   document.body.style.setProperty("--background-image", backgroundImage);
-}
-
-function exportStudyData() {
-  const blob = new Blob([JSON.stringify(state.store, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `sew-word-studio-${Date.now()}.json`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  el.backgroundHint.textContent = backgroundData ? "Background active" : "Theme only";
 }
 
 function setFeedback(message, tone = "") {
@@ -1824,11 +2060,21 @@ function formatPercent(value) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatDuration(milliseconds) {
+  const totalMinutes = Math.max(0, Math.round(Number(milliseconds || 0) / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}
+
 function getSessionCompletionSuffix() {
   if (!state.session.completed) {
     return "";
   }
-  return `\n\nセッション完了: ${state.session.answered}問中 ${state.session.correct}問正解`;
+  return `\n${state.session.correct} / ${state.session.answered}`;
 }
 
 function clearPendingAutoAdvance() {
@@ -1854,7 +2100,7 @@ function makeEmptyState(text, tagName = "div") {
   return item;
 }
 
-async function readFileAsDataUrl(file) {
+function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
@@ -1865,7 +2111,7 @@ async function readFileAsDataUrl(file) {
 
 function speakText(text) {
   if (!("speechSynthesis" in window)) {
-    setFeedback("このブラウザでは読み上げに対応していません。");
+    setFeedback("Speech is not available in this browser.", "wrong");
     return;
   }
   window.speechSynthesis.cancel();
@@ -1876,7 +2122,7 @@ function speakText(text) {
 }
 
 function handleKeyboardShortcuts(event) {
-  if (state.currentView !== "study" || state.studyScreen !== "quiz" || !state.currentQuestion) {
+  if (state.currentView !== "study" || !state.currentQuestion) {
     return;
   }
 
@@ -1902,14 +2148,10 @@ function handleKeyboardShortcuts(event) {
   }
 
   if (event.key === "Enter") {
-    if (!state.session.completed && !state.currentQuestion.answered) {
+    if (!state.currentQuestion.answered) {
       return;
     }
     event.preventDefault();
-    if (state.session.completed) {
-      startSession();
-      return;
-    }
     nextQuestion();
   }
 }
