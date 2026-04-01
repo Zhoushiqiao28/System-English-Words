@@ -269,6 +269,7 @@ button {
 
 main {
   min-height: 0;
+  overflow: hidden;
 }
 
 .view {
@@ -278,11 +279,13 @@ main {
 .view.is-active {
   display: block;
   animation: stage-in 180ms ease;
+  overflow: hidden;
 }
 
 .workspace {
   display: grid;
   gap: 10px;
+  min-height: 0;
 }
 
 .workspace-card,
@@ -808,6 +811,7 @@ body[data-theme="paper"] .primary-button {
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 0;
+  overflow: hidden;
 }
 
 .result-history-list,
@@ -1066,6 +1070,262 @@ body[data-theme="paper"] .primary-button {
   .weak-summary-card,
   .scroll-card {
     overflow: hidden;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-shell {
+    width: min(100vw - 12px, 100%);
+    margin: 6px auto;
+    gap: 6px;
+  }
+
+  .topbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .topbar h1 {
+    font-size: 1rem;
+  }
+
+  .topbar-meta,
+  .chip-group,
+  .history-tools,
+  .history-pager {
+    gap: 4px;
+  }
+
+  .status-pill,
+  .preview-chip,
+  .word-card-tag,
+  .result-badge {
+    min-height: 22px;
+    padding: 3px 7px;
+    font-size: 0.66rem;
+  }
+
+  .tab-bar {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .tab-button {
+    padding: 6px 6px;
+    font-size: 0.72rem;
+    border-radius: 12px;
+  }
+
+  .workspace {
+    gap: 6px;
+  }
+
+  .workspace-card,
+  .study-panel,
+  .scroll-card {
+    gap: 6px;
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .card-head {
+    gap: 8px;
+  }
+
+  .card-head h2 {
+    font-size: 0.9rem;
+  }
+
+  .field-grid,
+  .mini-grid,
+  .score-grid,
+  .metric-stack,
+  .button-row,
+  .range-fields,
+  .quiz-actions,
+  .option-grid {
+    gap: 6px;
+  }
+
+  .field span,
+  .mini-label,
+  .compact-note,
+  .preview-list,
+  .result-meaning,
+  .result-detail,
+  .calendar-label,
+  .result-order {
+    font-size: 0.7rem;
+  }
+
+  .field input,
+  .field select,
+  .answer-input {
+    padding: 7px 9px;
+    font-size: 0.78rem;
+    border-radius: 12px;
+  }
+
+  .switch {
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 0.76rem;
+    border-radius: 12px;
+  }
+
+  .mini-tile,
+  .metric-panel,
+  .metric-card,
+  .corner-card {
+    padding: 8px 9px;
+    border-radius: 14px;
+  }
+
+  .mini-tile strong,
+  .metric-panel strong,
+  .metric-card strong {
+    font-size: 0.94rem;
+    margin-top: 3px;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .option-button,
+  .icon-button {
+    padding: 7px 9px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+  }
+
+  .large-button,
+  .option-button,
+  .icon-button,
+  .compact-button {
+    min-height: 34px;
+  }
+
+  .icon-button {
+    min-width: 34px;
+    font-size: 0.88rem;
+  }
+
+  .system-workspace {
+    grid-template-columns: 1.02fr 0.9fr 0.9fr;
+  }
+
+  .details-workspace {
+    grid-template-columns: 1.06fr 0.96fr 0.78fr;
+  }
+
+  .results-workspace {
+    grid-template-columns: 0.92fr 1.35fr;
+  }
+
+  .dashboard-workspace {
+    grid-template-columns: 1.18fr 0.74fr 0.92fr;
+  }
+
+  .study-stage {
+    grid-template-columns: minmax(0, 1fr) 170px;
+    gap: 6px;
+  }
+
+  .study-main {
+    gap: 6px;
+  }
+
+  .study-head h2 {
+    font-size: 1rem;
+  }
+
+  .corner-stack,
+  .corner-card,
+  .corner-meta-list {
+    gap: 6px;
+  }
+
+  .corner-meta {
+    padding: 6px 7px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+  }
+
+  .corner-inline strong {
+    font-size: 0.86rem;
+  }
+
+  .feedback {
+    min-height: 32px;
+    padding: 8px 9px;
+    font-size: 0.74rem;
+    border-radius: 12px;
+  }
+
+  .option-button {
+    min-height: 48px;
+    line-height: 1.18;
+  }
+
+  .input-row {
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
+
+  .answer-input {
+    min-height: 36px;
+  }
+
+  .flash-answer {
+    min-height: 118px;
+    padding: 10px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+  }
+
+  .word-card {
+    width: min(100%, 400px);
+  }
+
+  .word-card-face {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .word-card-face strong {
+    font-size: 0.92rem;
+  }
+
+  .result-history-list {
+    gap: 6px;
+  }
+
+  .result-history-item {
+    gap: 4px;
+    padding: 7px 8px;
+    border-radius: 12px;
+  }
+
+  .calendar-grid {
+    gap: 4px;
+  }
+
+  .calendar-cell {
+    gap: 4px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .calendar-bar {
+    height: 7px;
+  }
+
+  .weak-summary-card {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .preview-chip-list {
+    gap: 6px;
   }
 }
 
