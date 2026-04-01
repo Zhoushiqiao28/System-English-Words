@@ -8,6 +8,7 @@ const PERSISTABLE_BACKGROUND_LIMIT = 650_000;
 const CARD_SWIPE_THRESHOLD = 72;
 const ADVANCE_SWIPE_THRESHOLD = 68;
 const CALENDAR_DAY_COUNT = 35;
+const RESULTS_PAGE_SIZE = 12;
 const PRIMARY_VIEWS = new Set(["system", "details", "study", "results", "dashboard"]);
 
 const MODE_LABELS = {
@@ -121,6 +122,9 @@ const el = {
   resultDuration: document.querySelector("#resultDuration"),
   resultHistoryCount: document.querySelector("#resultHistoryCount"),
   resultHistoryList: document.querySelector("#resultHistoryList"),
+  resultNextPageButton: document.querySelector("#resultNextPageButton"),
+  resultPageLabel: document.querySelector("#resultPageLabel"),
+  resultPrevPageButton: document.querySelector("#resultPrevPageButton"),
   resultRangeChip: document.querySelector("#resultRangeChip"),
   resultSummaryText: document.querySelector("#resultSummaryText"),
   resultBestStreak: document.querySelector("#resultBestStreak"),
@@ -155,6 +159,7 @@ const state = {
   pendingAutoAdvance: null,
   temporaryBackground: "",
   latestAnalytics: null,
+  resultHistoryPage: 0,
   session: createSessionState(),
 };
 
@@ -389,6 +394,8 @@ function bindEvents() {
   el.startSessionButton.addEventListener("click", () => startSession());
   el.backToDetailsButton.addEventListener("click", () => switchView("details"));
   el.repeatSessionButton.addEventListener("click", () => repeatDisplayedSession());
+  el.resultPrevPageButton.addEventListener("click", () => changeResultHistoryPage(-1));
+  el.resultNextPageButton.addEventListener("click", () => changeResultHistoryPage(1));
   el.exitSessionButton.addEventListener("click", () => switchView("details"));
 
   el.nextQuestionButton.addEventListener("click", () => {
@@ -558,6 +565,7 @@ function startSession() {
 
   clearPendingAutoAdvance();
   const settings = snapshotSettings(dataset, poolWords);
+  state.resultHistoryPage = 0;
   state.session = {
     ...createSessionState(),
     id: createSessionId(),
@@ -1231,7 +1239,7 @@ function renderQuestion() {
   if (!question) {
     el.questionBadge.textContent = state.session.completed ? "Complete" : "Ready";
     el.promptText.textContent = state.session.completed
-      ? "Session complete. Open Step 4 for the score."
+      ? "Session complete. Open Results for the score."
       : "Set your session and press Start.";
     el.favoriteButton.textContent = "☆";
     el.favoriteButton.disabled = true;
@@ -1535,9 +1543,13 @@ function renderResults() {
     el.resultBestStreak.textContent = "0";
     el.resultDuration.textContent = "0m";
     el.resultHistoryCount.textContent = "0";
+    updateResultHistoryPager(0);
     renderResultHistoryList([]);
     return;
   }
+
+  const totalPages = Math.max(1, Math.ceil(summary.attempts.length / RESULTS_PAGE_SIZE));
+  state.resultHistoryPage = Math.min(state.resultHistoryPage, totalPages - 1);
 
   el.resultDatasetChip.textContent = summary.datasetName;
   el.resultRangeChip.textContent = summary.rangeLabel;
@@ -1548,6 +1560,7 @@ function renderResults() {
   el.resultBestStreak.textContent = String(summary.bestStreak);
   el.resultDuration.textContent = formatDuration(summary.durationMs);
   el.resultHistoryCount.textContent = `${summary.attempts.length}`;
+  updateResultHistoryPager(totalPages);
   renderResultHistoryList(summary.attempts);
 }
 
@@ -1558,7 +1571,10 @@ function renderResultHistoryList(attempts) {
     return;
   }
 
-  attempts.forEach((attempt, index) => {
+  const start = state.resultHistoryPage * RESULTS_PAGE_SIZE;
+  const pageAttempts = attempts.slice(start, start + RESULTS_PAGE_SIZE);
+
+  pageAttempts.forEach((attempt, index) => {
     const item = document.createElement("li");
     item.className = `result-history-item${attempt.correct ? " is-correct" : " is-wrong"}`;
 
@@ -1567,7 +1583,7 @@ function renderResultHistoryList(attempts) {
 
     const order = document.createElement("span");
     order.className = "result-order";
-    order.textContent = `#${index + 1}`;
+    order.textContent = `#${start + index + 1}`;
 
     const badge = document.createElement("span");
     badge.className = "result-badge";
@@ -1593,6 +1609,28 @@ function renderResultHistoryList(attempts) {
 
     el.resultHistoryList.append(item);
   });
+}
+
+function changeResultHistoryPage(delta) {
+  const summary = getDisplayedSessionSummary();
+  if (!summary) {
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(summary.attempts.length / RESULTS_PAGE_SIZE));
+  state.resultHistoryPage = Math.max(0, Math.min(totalPages - 1, state.resultHistoryPage + delta));
+  renderResults();
+}
+
+function updateResultHistoryPager(totalPages) {
+  if (totalPages <= 0) {
+    el.resultPageLabel.textContent = "0 / 0";
+    el.resultPrevPageButton.disabled = true;
+    el.resultNextPageButton.disabled = true;
+    return;
+  }
+  el.resultPageLabel.textContent = `${state.resultHistoryPage + 1} / ${totalPages}`;
+  el.resultPrevPageButton.disabled = state.resultHistoryPage <= 0;
+  el.resultNextPageButton.disabled = state.resultHistoryPage >= totalPages - 1;
 }
 
 function shouldShowAttemptDetail(attempt) {

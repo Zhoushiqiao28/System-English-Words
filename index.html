@@ -27,7 +27,6 @@
     <div class="app-shell">
       <header class="topbar panel">
         <div class="brand-block">
-          <p class="eyebrow">System English Words</p>
           <h1>System English Words</h1>
         </div>
 
@@ -38,10 +37,10 @@
       </header>
 
       <nav class="tab-bar panel" aria-label="Main navigation">
-        <button class="tab-button is-active" data-view-target="system">Step 1</button>
-        <button class="tab-button" data-view-target="details">Step 2</button>
-        <button class="tab-button" data-view-target="study">Step 3</button>
-        <button class="tab-button" data-view-target="results">Step 4</button>
+        <button class="tab-button is-active" data-view-target="system">System</button>
+        <button class="tab-button" data-view-target="details">Setup</button>
+        <button class="tab-button" data-view-target="study">Study</button>
+        <button class="tab-button" data-view-target="results">Results</button>
         <button class="tab-button" data-view-target="dashboard">Dashboard</button>
       </nav>
 
@@ -51,7 +50,6 @@
             <article class="panel workspace-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Step 1</p>
                   <h2>System</h2>
                 </div>
                 <span class="status-pill" id="systemWordCount">0 words</span>
@@ -94,8 +92,7 @@
             <article class="panel workspace-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Theme</p>
-                  <h2>Look</h2>
+                  <h2>Theme</h2>
                 </div>
               </div>
 
@@ -128,8 +125,7 @@
             <article class="panel workspace-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Data</p>
-                  <h2>Manage</h2>
+                  <h2>Data</h2>
                 </div>
               </div>
 
@@ -153,8 +149,7 @@
             <article class="panel workspace-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Step 2</p>
-                  <h2>Details</h2>
+                  <h2>Setup</h2>
                 </div>
               </div>
 
@@ -200,8 +195,7 @@
             <article class="panel workspace-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Range</p>
-                  <h2>Session</h2>
+                  <h2>Range</h2>
                 </div>
               </div>
 
@@ -244,8 +238,7 @@
             <aside class="panel workspace-card launch-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Preview</p>
-                  <h2>Ready</h2>
+                  <h2>Start</h2>
                 </div>
               </div>
 
@@ -333,7 +326,6 @@
             <article class="panel workspace-card score-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Step 4</p>
                   <h2>Results</h2>
                 </div>
                 <div class="chip-group">
@@ -364,17 +356,23 @@
 
               <div class="button-row">
                 <button class="primary-button" id="repeatSessionButton">Repeat This Session</button>
-                <button class="secondary-button" id="backToDetailsButton">Back to Details</button>
+                <button class="secondary-button" id="backToDetailsButton">Back to Setup</button>
               </div>
             </article>
 
             <article class="panel workspace-card history-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">History</p>
                   <h2>Review</h2>
                 </div>
-                <span class="status-pill" id="resultHistoryCount">0</span>
+                <div class="history-tools">
+                  <span class="status-pill" id="resultHistoryCount">0</span>
+                  <div class="history-pager">
+                    <button class="secondary-button compact-button" id="resultPrevPageButton" type="button">Prev</button>
+                    <span class="status-pill page-pill" id="resultPageLabel">1 / 1</span>
+                    <button class="secondary-button compact-button" id="resultNextPageButton" type="button">Next</button>
+                  </div>
+                </div>
               </div>
 
               <ul id="resultHistoryList" class="result-history-list"></ul>
@@ -387,7 +385,6 @@
             <article class="panel workspace-card calendar-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Dashboard</p>
                   <h2>Calendar</h2>
                 </div>
                 <span class="status-pill">Last 35 Days</span>
@@ -416,7 +413,6 @@
             <button class="panel weak-summary-card" id="openWeakWordsButton" type="button">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">Weak Candidates</p>
                   <h2>Weak Words</h2>
                 </div>
                 <span class="status-pill" id="weakCandidateCount">0</span>
@@ -432,7 +428,6 @@
             <article class="panel scroll-card">
               <div class="card-head sticky-head">
                 <div>
-                  <p class="eyebrow">Weak Words</p>
                   <h2>Detail</h2>
                 </div>
                 <button class="secondary-button" id="closeWeakWordsButton">Back</button>
@@ -448,7 +443,6 @@
             <article class="panel scroll-card">
               <div class="card-head sticky-head">
                 <div>
-                  <p class="eyebrow">Word Bank</p>
                   <h2>List</h2>
                 </div>
                 <button class="secondary-button" id="closeWordBankButton">Back</button>
