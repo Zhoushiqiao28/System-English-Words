@@ -1504,8 +1504,8 @@ function renderWordCardMode(question) {
       card.dataset.ignoreClick = "false";
       return;
     }
-    if (question.answered) {
-      advanceQuestionFromGesture();
+    if (question.answered || question.revealed) {
+      advanceWordCardQuestion();
       return;
     }
     toggleWordCardReveal();
@@ -1546,14 +1546,7 @@ function renderWordCardMode(question) {
   known.disabled = question.answered;
   known.addEventListener("click", () => submitFlashcardResult(true));
 
-  const again = document.createElement("button");
-  again.type = "button";
-  again.className = "secondary-button";
-  again.textContent = "Again";
-  again.disabled = question.answered;
-  again.addEventListener("click", () => submitFlashcardResult(false));
-
-  row.append(known, again);
+  row.append(known);
   block.append(row);
 
   el.answerArea.append(block);
@@ -1602,10 +1595,42 @@ function toggleWordCardReveal(force) {
 
 function handleWordCardSwipe() {
   const question = state.currentQuestion;
-  if (!question || question.mode !== "card" || !question.answered) {
+  if (!question || question.mode !== "card" || !question.revealed) {
     return;
   }
-  advanceQuestionFromGesture();
+  advanceWordCardQuestion();
+}
+
+function advanceWordCardQuestion() {
+  const question = state.currentQuestion;
+  if (!question || question.mode !== "card") {
+    return false;
+  }
+
+  if (question.answered) {
+    nextQuestion();
+    return true;
+  }
+
+  if (!question.revealed) {
+    return false;
+  }
+
+  question.answered = true;
+  question.correct = false;
+
+  recordAttempt({
+    correct: false,
+    direction: question.direction,
+    mode: question.mode,
+    question,
+    userAnswer: "Next",
+  });
+
+  if (!state.session.completed) {
+    nextQuestion();
+  }
+  return true;
 }
 
 function renderResults() {
@@ -2315,7 +2340,16 @@ function handleKeyboardShortcuts(event) {
   }
 
   if (event.key === "Enter") {
-    if (!state.currentQuestion.answered && (state.currentQuestion.mode === "flashcard" || state.currentQuestion.mode === "card")) {
+    if (state.currentQuestion.mode === "card") {
+      event.preventDefault();
+      if (!state.currentQuestion.revealed) {
+        revealCurrentAnswer();
+        return;
+      }
+      advanceWordCardQuestion();
+      return;
+    }
+    if (!state.currentQuestion.answered && state.currentQuestion.mode === "flashcard") {
       event.preventDefault();
       revealCurrentAnswer();
       return;
