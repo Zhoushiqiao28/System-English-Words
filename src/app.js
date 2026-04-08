@@ -26,6 +26,7 @@ const DIRECTION_LABELS = {
 
 const FOCUS_LABELS = {
   all: "All",
+  known: "Known",
   weak: "Weak",
   favorites: "Favorites",
   "recent-mistakes": "Recent Mistakes",
@@ -55,6 +56,7 @@ const DEFAULT_PROGRESS = {
   attempts: [],
   sessions: [],
   wordStats: {},
+  memorized: {},
   favorites: {},
   bestStreak: 0,
   studyTimeMs: 0,
@@ -264,6 +266,7 @@ function loadStore() {
         attempts: Array.isArray(progress.attempts) ? progress.attempts : [],
         sessions: Array.isArray(progress.sessions) ? progress.sessions : [],
         wordStats: progress.wordStats || {},
+        memorized: progress.memorized || {},
         favorites: progress.favorites || {},
         bestStreak: Number(progress.bestStreak || 0),
         studyTimeMs: Number(progress.studyTimeMs || 0),
@@ -376,7 +379,7 @@ function refreshSessionLengthOptions() {
   const dataset = getActiveDataset();
   const rangeWords = getWordsInRange(dataset.words);
   const selectedWords = getCandidatesForFocus(rangeWords);
-  const count = selectedWords.length ? selectedWords.length : rangeWords.length;
+  const count = selectedWords.length;
   const options = [
     { value: "10", label: "10" },
     { value: "20", label: "20" },
@@ -589,7 +592,7 @@ function startSession() {
   const dataset = getActiveDataset();
   const rangeWords = getWordsInRange(dataset.words);
   const selectedWords = getCandidatesForFocus(rangeWords);
-  const poolWords = selectedWords.length ? selectedWords : rangeWords;
+  const poolWords = selectedWords;
 
   if (!poolWords.length) {
     state.currentQuestion = null;
@@ -675,6 +678,9 @@ function getPromptFeedback(question) {
 
 function buildQuestion() {
   if (!state.session.poolWords.length) {
+    if (state.session.active && state.session.answered > 0 && !state.session.completed) {
+      completeSession();
+    }
     return null;
   }
 
@@ -684,6 +690,9 @@ function buildQuestion() {
 
   const word = state.session.cycleQueue.shift();
   if (!word) {
+    if (state.session.active && state.session.answered > 0 && !state.session.completed) {
+      completeSession();
+    }
     return null;
   }
 
@@ -733,8 +742,14 @@ function buildMultipleChoiceOptions(word, pool, direction) {
 }
 
 function getCandidatesForFocus(words, focus = state.store.settings.focus) {
+  if (focus === "known") {
+    return words.filter((word) => isWordMemorized(word.uid));
+  }
+
+  const availableWords = words.filter((word) => !isWordMemorized(word.uid));
+
   if (focus === "favorites") {
-    return words.filter((word) => state.store.progress.favorites[word.uid]);
+    return availableWords.filter((word) => state.store.progress.favorites[word.uid]);
   }
 
   if (focus === "recent-mistakes") {
@@ -744,15 +759,15 @@ function getCandidatesForFocus(words, focus = state.store.settings.focus) {
         .slice(0, 80)
         .map((attempt) => attempt.uid)
     );
-    return words.filter((word) => recentMistakes.has(word.uid));
+    return availableWords.filter((word) => recentMistakes.has(word.uid));
   }
 
   if (focus === "weak") {
     const weakIds = new Set(getWeakWords(200).map((entry) => entry.word.uid));
-    return words.filter((word) => weakIds.has(word.uid));
+    return availableWords.filter((word) => weakIds.has(word.uid));
   }
 
-  return words;
+  return availableWords;
 }
 
 function getSelectedRange(rawStart = state.store.settings.rangeStart, rawEnd = state.store.settings.rangeEnd) {
@@ -963,6 +978,7 @@ function submitFlashcardResult(correct) {
 
   question.answered = true;
   question.correct = correct;
+  setWordMemorized(question.word.uid, correct);
 
   recordAttempt({
     correct,
@@ -971,6 +987,10 @@ function submitFlashcardResult(correct) {
     question,
     userAnswer: correct ? "Known" : "Again",
   });
+
+  if (!state.session.completed && state.session.active && !state.session.poolWords.length) {
+    completeSession();
+  }
 
   setFeedback(
     correct ? `Saved: ${question.word.english}` : `Review: ${question.word.english}${getSessionCompletionSuffix()}`,
@@ -1216,6 +1236,27 @@ function toggleFavoriteForCurrentWord() {
   renderWordBank();
 }
 
+function isWordMemorized(wordUid) {
+  return Boolean(state.store.progress.memorized?.[wordUid]);
+}
+
+function setWordMemorized(wordUid, memorized) {
+  if (!state.store.progress.memorized) {
+    state.store.progress.memorized = {};
+  }
+
+  if (memorized) {
+    state.store.progress.memorized[wordUid] = true;
+    if (state.session.active) {
+      state.session.poolWords = state.session.poolWords.filter((word) => word.uid !== wordUid);
+      state.session.cycleQueue = state.session.cycleQueue.filter((word) => word.uid !== wordUid);
+    }
+    return;
+  }
+
+  delete state.store.progress.memorized[wordUid];
+}
+
 function renderAll() {
   renderHeader();
   renderSystem();
@@ -1237,7 +1278,7 @@ function renderSystem() {
   const dataset = getActiveDataset();
   const rangeWords = getWordsInRange(dataset.words);
   const previewWords = getCandidatesForFocus(rangeWords);
-  const wordCount = previewWords.length ? previewWords.length : rangeWords.length;
+  const wordCount = previewWords.length;
 
   el.systemWordCount.textContent = `${wordCount} words`;
   el.systemDatasetName.textContent = displayDatasetName(dataset.meta);
@@ -1251,7 +1292,7 @@ function renderDetails() {
   const dataset = getActiveDataset();
   const rangeWords = getWordsInRange(dataset.words);
   const selectedWords = getCandidatesForFocus(rangeWords);
-  const count = selectedWords.length ? selectedWords.length : rangeWords.length;
+  const count = selectedWords.length;
 
   refreshSessionLengthOptions();
   el.detailsSelectionCount.textContent = `${count}`;
@@ -1795,6 +1836,13 @@ function renderWordBank() {
 
     const meta = document.createElement("div");
     meta.className = "word-bank-meta";
+
+    if (isWordMemorized(word.uid)) {
+      const known = document.createElement("span");
+      known.className = "status-pill";
+      known.textContent = "Known";
+      meta.append(known);
+    }
 
     if (state.store.progress.favorites[word.uid]) {
       const star = document.createElement("span");
