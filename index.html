@@ -131,7 +131,7 @@
 
               <label class="field">
                 <span>Import CSV</span>
-                <input type="file" id="csvFileInput" accept=".csv,.tsv,.txt" />
+                <input type="file" id="csvFileInput" accept=".csv,.tsv,.txt,.xlsx,.xls" />
               </label>
 
               <p class="compact-note" id="datasetStatusText">Built-in data: system.xlsx</p>
@@ -206,6 +206,7 @@
                     <option value="10">10</option>
                     <option value="20" selected>20</option>
                     <option value="50">50</option>
+                    <option value="-1">Selected Range</option>
                     <option value="0">Unlimited</option>
                   </select>
                 </label>
@@ -455,6 +456,7 @@
       </main>
     </div>
 
+    <script src="./vendor/xlsx.full.min.js"></script>
     <script type="module" src="./src/app.js"></script>
   </body>
 </html>

@@ -304,7 +304,7 @@ function syncStore() {
     state.store.settings.autoAdvanceMode = DEFAULT_SETTINGS.autoAdvanceMode;
   }
 
-  state.store.settings.sessionLength = Number(state.store.settings.sessionLength || DEFAULT_SETTINGS.sessionLength);
+  state.store.settings.sessionLength = normalizeSessionLength(state.store.settings.sessionLength);
 }
 
 function getDatasets() {
@@ -348,6 +348,7 @@ function displayDatasetName(meta) {
 
 function hydrateControls() {
   populateDatasetSelect();
+  refreshSessionLengthOptions();
   el.modeSelect.value = state.store.settings.mode;
   el.datasetSelect.value = state.store.settings.activeDataset;
   el.themeSelect.value = state.store.settings.theme;
@@ -368,6 +369,30 @@ function populateDatasetSelect() {
     option.value = dataset.meta.id;
     option.textContent = `${displayDatasetName(dataset.meta)} (${dataset.words.length})`;
     el.datasetSelect.append(option);
+  });
+}
+
+function refreshSessionLengthOptions() {
+  const dataset = getActiveDataset();
+  const rangeWords = getWordsInRange(dataset.words);
+  const selectedWords = getCandidatesForFocus(rangeWords);
+  const count = selectedWords.length ? selectedWords.length : rangeWords.length;
+  const options = [
+    { value: "10", label: "10" },
+    { value: "20", label: "20" },
+    { value: "50", label: "50" },
+    { value: "-1", label: `Selected Range (${count})` },
+    { value: "0", label: "Unlimited" },
+  ];
+  const currentValue = String(normalizeSessionLength(state.store.settings.sessionLength));
+
+  el.sessionLengthSelect.replaceChildren();
+  options.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.value;
+    option.textContent = item.label;
+    option.selected = item.value === currentValue;
+    el.sessionLengthSelect.append(option);
   });
 }
 
@@ -431,7 +456,7 @@ function bindEvents() {
     if (!file) {
       return;
     }
-    await importCsvFile(file);
+    await importWordFile(file);
     el.csvFileInput.value = "";
   });
 
@@ -516,6 +541,11 @@ function applyActiveViewState() {
   document.body.dataset.activeView = state.currentView;
 }
 
+function normalizeSessionLength(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : DEFAULT_SETTINGS.sessionLength;
+}
+
 function snapshotSettings(dataset, selectedWords) {
   return {
     activeDataset: state.store.settings.activeDataset,
@@ -524,7 +554,7 @@ function snapshotSettings(dataset, selectedWords) {
     mode: state.store.settings.mode,
     direction: state.store.settings.direction,
     focus: state.store.settings.focus,
-    sessionLength: Number(state.store.settings.sessionLength || 0),
+    sessionLength: normalizeSessionLength(state.store.settings.sessionLength),
     rangeStart: state.store.settings.rangeStart,
     rangeEnd: state.store.settings.rangeEnd,
     rangeLabel: formatRangeLabel(dataset, state.store.settings.rangeStart, state.store.settings.rangeEnd),
@@ -543,7 +573,7 @@ function restoreSettingsFromSnapshot(snapshot) {
   state.store.settings.mode = snapshot.mode || DEFAULT_SETTINGS.mode;
   state.store.settings.direction = snapshot.direction || DEFAULT_SETTINGS.direction;
   state.store.settings.focus = snapshot.focus || DEFAULT_SETTINGS.focus;
-  state.store.settings.sessionLength = Number(snapshot.sessionLength || DEFAULT_SETTINGS.sessionLength);
+  state.store.settings.sessionLength = normalizeSessionLength(snapshot.sessionLength);
   state.store.settings.rangeStart = String(snapshot.rangeStart || "");
   state.store.settings.rangeEnd = String(snapshot.rangeEnd || "");
   state.store.settings.autoPronounce = Boolean(snapshot.autoPronounce);
@@ -578,7 +608,7 @@ function startSession() {
     id: createSessionId(),
     active: true,
     startedAt: Date.now(),
-    limit: Number(settings.sessionLength || 0),
+    limit: resolveSessionLimit(settings.sessionLength, poolWords.length),
     poolWords,
     cycleQueue: buildCycleQueue(poolWords),
     settings,
@@ -591,6 +621,14 @@ function startSession() {
 
 function createSessionId() {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function resolveSessionLimit(sessionLength, selectedCount) {
+  const numericLength = normalizeSessionLength(sessionLength);
+  if (numericLength === -1) {
+    return selectedCount;
+  }
+  return numericLength;
 }
 
 function buildCycleQueue(words) {
@@ -1215,6 +1253,7 @@ function renderDetails() {
   const selectedWords = getCandidatesForFocus(rangeWords);
   const count = selectedWords.length ? selectedWords.length : rangeWords.length;
 
+  refreshSessionLengthOptions();
   el.detailsSelectionCount.textContent = `${count}`;
   el.detailsRangeHint.textContent = formatRangeLabel(dataset);
   el.detailsModeText.textContent = MODE_LABELS[state.store.settings.mode];
@@ -1864,11 +1903,15 @@ function getWeakWords(limit) {
     .slice(0, limit);
 }
 
-function importCsvFile(file) {
-  return file.text().then((text) => {
-    const parsedWords = parseWordCsv(text);
+function importWordFile(file) {
+  const fileName = String(file.name || "");
+  const importer = isSpreadsheetFile(fileName)
+    ? readFileAsArrayBuffer(file).then((buffer) => parseWordWorkbook(buffer))
+    : file.text().then((text) => parseWordCsv(text));
+
+  return importer.then((parsedWords) => {
     if (!parsedWords.length) {
-      alert("No word rows were found in the CSV file.");
+      alert("No word rows were found in the selected file.");
       return;
     }
 
@@ -1897,13 +1940,43 @@ function importCsvFile(file) {
     switchView("system");
   }).catch((error) => {
     console.error(error);
-    alert("CSV import failed.");
+    alert("File import failed.");
   });
+}
+
+function isSpreadsheetFile(fileName) {
+  return /\.(xlsx|xls)$/i.test(fileName);
 }
 
 function parseWordCsv(text) {
   const sanitized = text.replace(/^\uFEFF/, "");
   const rows = parseDelimitedText(sanitized).filter((row) => row.some((cell) => cell.trim()));
+  return parseWordRows(rows);
+}
+
+function parseWordWorkbook(buffer) {
+  if (typeof XLSX === "undefined") {
+    throw new Error("XLSX library is not loaded.");
+  }
+
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    return [];
+  }
+
+  const sheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    raw: false,
+    defval: "",
+    blankrows: false,
+  }).map((row) => row.map((cell) => String(cell ?? "")));
+
+  return parseWordRows(rows);
+}
+
+function parseWordRows(rows) {
   if (!rows.length) {
     return [];
   }
@@ -2141,6 +2214,15 @@ function readFileAsDataUrl(file) {
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
   });
 }
 

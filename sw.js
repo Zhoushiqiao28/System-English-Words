@@ -1,8 +1,9 @@
-const CACHE_NAME = "sew-word-studio-v4";
+const CACHE_NAME = "sew-word-studio-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./vendor/xlsx.full.min.js",
   "./src/app.js",
   "./src/data/defaultWords.js",
   "./assets/apple-touch-icon.png",
