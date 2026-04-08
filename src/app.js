@@ -168,6 +168,7 @@ bindEvents();
 hydrateControls();
 applyTheme();
 renderAll();
+applyActiveViewState();
 registerServiceWorker();
 
 function cloneData(value) {
@@ -492,6 +493,7 @@ function switchView(viewName) {
   el.tabButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.viewTarget === state.primaryView);
   });
+  applyActiveViewState();
 }
 
 function openAuxView(viewName, returnView = state.primaryView) {
@@ -503,10 +505,15 @@ function openAuxView(viewName, returnView = state.primaryView) {
   el.tabButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.viewTarget === state.returnView);
   });
+  applyActiveViewState();
 }
 
 function closeAuxView() {
   switchView(state.returnView || "dashboard");
+}
+
+function applyActiveViewState() {
+  document.body.dataset.activeView = state.currentView;
 }
 
 function snapshotSettings(dataset, selectedWords) {
@@ -625,19 +632,7 @@ function nextQuestion(isFreshStart = false) {
 }
 
 function getPromptFeedback(question) {
-  if (!question) {
-    return "";
-  }
-  if (question.mode === "multiple") {
-    return "Pick the best answer.";
-  }
-  if (question.mode === "input") {
-    return "Type the answer and press Enter.";
-  }
-  if (question.mode === "card") {
-    return "Tap to flip. Swipe after scoring to move on.";
-  }
-  return "Reveal the answer, then mark it.";
+  return question ? "" : "";
 }
 
 function buildQuestion() {
@@ -1245,14 +1240,16 @@ function renderQuestion() {
     el.favoriteButton.disabled = true;
     el.answerArea.replaceChildren(makeEmptyState("The active question appears here."));
     el.feedbackBox.classList.remove("is-correct", "is-wrong", "is-next-ready");
-    el.feedbackBox.textContent = state.session.active ? "Next question will appear here." : "No active session.";
+    el.feedbackBox.textContent = "";
     el.revealButton.disabled = true;
     el.speakButton.disabled = true;
     el.nextQuestionButton.textContent = state.session.active ? "Next" : "Start";
     return;
   }
 
-  el.questionBadge.textContent = `Q${state.session.answered + 1}`;
+  const nextIndex = state.session.answered + 1;
+  const totalLabel = state.session.limit > 0 ? ` / ${state.session.limit}` : "";
+  el.questionBadge.textContent = `Q ${nextIndex}${totalLabel}`;
   el.promptText.textContent = question.mode === "card" ? "Word Card" : question.prompt;
   el.favoriteButton.textContent = state.store.progress.favorites[question.word.uid] ? "★" : "☆";
   el.favoriteButton.disabled = false;
