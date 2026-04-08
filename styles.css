@@ -478,6 +478,15 @@ body[data-active-view="study"] .quiz-actions > * {
   white-space: nowrap;
 }
 
+.memorized-pill {
+  min-width: 28px;
+  padding: 6px;
+  border-color: rgba(78, 196, 124, 0.38);
+  background: rgba(78, 196, 124, 0.16);
+  color: #8df0af;
+  font-weight: 700;
+}
+
 .mini-grid,
 .field-grid,
 .score-grid,

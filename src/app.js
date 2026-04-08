@@ -1839,8 +1839,10 @@ function renderWordBank() {
 
     if (isWordMemorized(word.uid)) {
       const known = document.createElement("span");
-      known.className = "status-pill";
-      known.textContent = "Known";
+      known.className = "status-pill memorized-pill";
+      known.textContent = "✓";
+      known.title = "Known";
+      known.setAttribute("aria-label", "Known");
       meta.append(known);
     }
 
@@ -2313,6 +2315,11 @@ function handleKeyboardShortcuts(event) {
   }
 
   if (event.key === "Enter") {
+    if (!state.currentQuestion.answered && (state.currentQuestion.mode === "flashcard" || state.currentQuestion.mode === "card")) {
+      event.preventDefault();
+      revealCurrentAnswer();
+      return;
+    }
     if (!state.currentQuestion.answered) {
       return;
     }
